@@ -108,6 +108,9 @@ export class SummaryBridge extends BaseScriptComponent {
 
   private initialize(): void {
     print("SummaryBridge: Initialize called!")
+    
+    // Check device environment
+    this.checkDeviceEnvironment()
 
     // Storage reset is now handled centrally by StorageManager
     // The StorageManager will reset SummaryStorage if configured to do so
@@ -125,6 +128,32 @@ export class SummaryBridge extends BaseScriptComponent {
         `SummaryBridge: Initial state - connected: ${this.isConnected}, storage: ${!!this.summaryStorage}, summarizer: ${!!this.aiSummarizer}`
       )
     }
+  }
+  
+  /**
+   * Check device environment and availability of services
+   */
+  private checkDeviceEnvironment(): void {
+    print("SummaryBridge: 🔍 Checking device environment...")
+    
+    // Check persistent storage
+    if (global.persistentStorageSystem) {
+      print("SummaryBridge: ✅ Persistent storage available")
+    } else {
+      print("SummaryBridge: ❌ WARNING: Persistent storage NOT available!")
+    }
+    
+    // Check internet connectivity
+    if (global.deviceInfoSystem) {
+      const hasInternet = global.deviceInfoSystem.isInternetAvailable()
+      print(`SummaryBridge: ${hasInternet ? '✅' : '❌'} Internet connectivity: ${hasInternet}`)
+    } else {
+      print("SummaryBridge: ⚠️ Device info system not available")
+    }
+    
+    // Check if running on device vs preview
+    const isPreview = !global.deviceInfoSystem || global.deviceInfoSystem.isEditor()
+    print(`SummaryBridge: 📱 Running in: ${isPreview ? 'LENS STUDIO PREVIEW' : 'SPECTACLES DEVICE'}`)
   }
 
   private validateComponents(): void {
@@ -178,11 +207,15 @@ export class SummaryBridge extends BaseScriptComponent {
       if (currentSummary && currentSummary.sections && currentSummary.sections.length > 0) {
         if (this.enableDebugLogging) {
           print(`SummaryBridge: 📚 Found existing summary with ${currentSummary.sections.length} sections`)
+          print(`SummaryBridge: ⚠️ Old summary detected - will be replaced when new summary is generated`)
         }
 
-        // Log summary cards if requested
+        // DO NOT display old summaries on startup (prevents mixing old/new cards)
+        // New summaries will be displayed when generated via displaySummary() callback
+        
+        // Log summary cards if requested (for debugging only)
         if (this.showSummaryCards) {
-          print("\nSummaryBridge: 📋 === SUMMARY CARDS CONTENT ===")
+          print("\nSummaryBridge: 📋 === OLD SUMMARY (NOT DISPLAYED) ===")
           print(`Summary Title: ${currentSummary.summaryTitle || "Untitled"}`)
           print(`Number of Cards: ${currentSummary.sections.length}`)
           print("----------------------------------------")
@@ -196,17 +229,7 @@ export class SummaryBridge extends BaseScriptComponent {
             }
             print("----------------------------------------")
           })
-          print("=== END SUMMARY CARDS ===\n")
-        }
-
-        // Convert stored sections to the format expected by the UI
-        const convertedSections = this.convertSections(currentSummary.sections)
-
-        // Display the summary on the UI
-        this.displaySummaryOnUI({sections: convertedSections})
-
-        if (this.enableDebugLogging) {
-          print(`SummaryBridge: Loaded and displayed existing summary: "${currentSummary.summaryTitle}"`)
+          print("=== END OLD SUMMARY ===\n")
         }
       } else {
         if (this.enableDebugLogging) {

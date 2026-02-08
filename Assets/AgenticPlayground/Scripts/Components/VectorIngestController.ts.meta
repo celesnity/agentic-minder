@@ -1,0 +1,80 @@
+- !<AssetImportMetadata/4bf0a609-8df7-4ee5-b28b-8d6daae89e29>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 6ab2850a-f255-42d0-b660-1f14fd2666b8
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 6ab2850a-f255-42d0-b660-1f14fd2666b8
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> ad908329-fa09-4dd5-ad72-0b19b4dae1cf
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/ad908329-fa09-4dd5-ad72-0b19b4dae1cf>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 5127d007-a1fc-4553-8419-15379c6418a1
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    chunkOverlapChars: false
+    chunkSizeChars: false
+    embeddingDimensions: false
+    embeddingModel: false
+    enableDebugLogging: false
+    enableIngestion: false
+    internetModule: false
+    remoteWsUrl: false
+    summaryASRController: false
+    summaryStorage: false
+    useRemoteVectorService: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - summaryASRController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      summaryStorage: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+      useRemoteVectorService: true
+      internetModule: !<reference.InternetModule> 1a3c3875-b801-46fc-a892-09bf2f782997
+      remoteWsUrl: "ws://192.168.40.51:8787/ws"
+      enableIngestion: true
+      enableDebugLogging: true
+      chunkSizeChars: !<float> 50.000000
+      chunkOverlapChars: !<float> 40.000000
+      embeddingModel: gpt-4o-mini
+      embeddingDimensions: !<float> 64.000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @input AssignableType summaryASRController {"hint":"Reference to SummaryASRController (mic start/stop events)"}'
+    - '// @input AssignableType_1 summaryStorage {"hint":"Reference to SummaryStorage (source of truth for accumulated transcript text)"}'
+    - '// @ui {"widget":"group_start", "label":"Vector Mode"}'
+    - '// @input bool useRemoteVectorService {"hint":"Use remote local-computer VectorDB service (Qdrant via WebSocket). If false, uses on-device Persistent Storage vector store."}'
+    - '// @input Asset.InternetModule internetModule {"hint":"InternetModule asset required for WebSocket connection (Preview/internal demos)"}'
+    - '// @input string remoteWsUrl = "ws://127.0.0.1:8787/ws" {"hint":"WebSocket URL for the local vector service"}'
+    - '// @ui {"widget":"group_end"}'
+    - '// @input bool enableIngestion = true {"hint":"Enable vector ingestion"}'
+    - '// @input bool enableDebugLogging = true {"hint":"Enable debug logging"}'
+    - '// @ui {"widget":"group_start", "label":"Chunking"}'
+    - '// @input float chunkSizeChars = 30 {"hint":"Chunk size in characters (30 for testing, 120+ for production)"}'
+    - '// @input float chunkOverlapChars = 5 {"hint":"Chunk overlap in characters"}'
+    - '// @ui {"widget":"group_end"}'
+    - '// @ui {"widget":"group_start", "label":"Embedding"}'
+    - '// @input string embeddingModel = "gpt-4o-mini" {"hint":"OpenAI model for embeddings (LLM vectorization)"}'
+    - '// @input float embeddingDimensions = 64 {"hint":"Embedding dimensions (fixed length vector)"}'
+    - '// @ui {"widget":"group_end"}'

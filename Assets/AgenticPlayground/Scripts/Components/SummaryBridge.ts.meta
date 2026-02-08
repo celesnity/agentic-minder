@@ -56,10 +56,10 @@
       asrController: !<MappingBased.AssignableType_3> 00000000-0000-0000-0000-000000000000
       testASRDocumentCreation: false
       testComponentWithoutStorage: false
-      summarizationWordThreshold: !<float> 500.000000
+      summarizationWordThreshold: !<float> 400.000000
       enableDebugLogging: true
       enableAutoSummary: true
-      autoSummaryThreshold: !<float> 1000.000000
+      autoSummaryThreshold: !<float> 100.000000
       updateInterval: !<float> 3.000000
       showStoredTranscription: false
       showSummaryCards: false

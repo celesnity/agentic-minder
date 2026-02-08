@@ -2,10 +2,15 @@ import {AgentLanguageInterface} from "../Agents/AgentLanguageInterface"
 import {ChatStorage} from "../Storage/ChatStorage"
 import {DiagramStorage} from "../Storage/DiagramStorage"
 import {SummaryStorage} from "../Storage/SummaryStorage"
+import {RemoteVectorMemoryClient} from "../Storage/RemoteVectorMemoryClient"
 import {DiagramCreatorTool} from "./DiagramCreatorTool"
 import {GeneralConversationTool} from "./GeneralConversationTool"
 import {SpatialTool} from "./SpatialTool"
 import {SummaryTool} from "./SummaryTool"
+import {VectorSearchTool} from "./VectorSearchTool"
+import {VectorListTool} from "./VectorListTool"
+import {VectorCountTool} from "./VectorCountTool"
+import {VectorDeleteTool} from "./VectorDeleteTool"
 
 /**
  * Tool metadata for AI routing decisions
@@ -27,15 +32,26 @@ export class ToolRouter {
   private toolIndex: Map<string, ToolMetadata> = new Map()
   private enableDebugLogging: boolean = true
   private diagramCreatorTool: DiagramCreatorTool
+  private generalConversationTool: GeneralConversationTool
+  private vectorSearchTool: VectorSearchTool
+  private vectorListTool: VectorListTool
+  private vectorCountTool: VectorCountTool
+  private vectorDeleteTool: VectorDeleteTool
 
   constructor(languageInterface: AgentLanguageInterface, diagramStorage?: DiagramStorage) {
     this.languageInterface = languageInterface
 
     // Initialize tools
     this.diagramCreatorTool = new DiagramCreatorTool(languageInterface, diagramStorage)
-    const generalConversation = new GeneralConversationTool(languageInterface)
+    this.generalConversationTool = new GeneralConversationTool(languageInterface)
     const summaryTool = new SummaryTool(languageInterface)
     const spatialTool = new SpatialTool(languageInterface)
+    
+    // Initialize VectorDB CRUD tools
+    this.vectorSearchTool = new VectorSearchTool(languageInterface)
+    this.vectorListTool = new VectorListTool()
+    this.vectorCountTool = new VectorCountTool()
+    this.vectorDeleteTool = new VectorDeleteTool()
 
     // Index tools with their capabilities and use cases
     this.indexTool("diagram_tool", {
@@ -96,12 +112,13 @@ export class ToolRouter {
 
     this.indexTool("general_conversation", {
       name: "general_conversation",
-      description: "Handles general conversation and educational questions without specialized context",
+      description: "Handles general conversation and educational questions with access to lecture summaries",
       capabilities: [
         "Provide general educational assistance",
         "Answer broad knowledge questions",
         "Engage in conversational learning",
-        "Handle queries not requiring specialized tools"
+        "Handle queries not requiring specialized tools",
+        "Access lecture summaries for context"
       ],
       useWhen: [
         "General educational questions not related to specific lecture content",
@@ -109,7 +126,80 @@ export class ToolRouter {
         "Conversational learning that doesn't need specialized context",
         "Default choice when no other tool is specifically needed"
       ],
-      instance: generalConversation
+      instance: this.generalConversationTool
+    })
+
+    // Register VectorDB CRUD tools
+    this.indexTool("vector_search_tool", {
+      name: "vector_search_tool",
+      description: "Performs semantic search on VectorDB to find relevant recorded chunks by meaning",
+      capabilities: [
+        "Semantic search in recorded transcripts",
+        "Find chunks by meaning (not exact text)",
+        "Search past recordings and lectures",
+        "Query stored knowledge base"
+      ],
+      useWhen: [
+        'User wants to find specific content in recordings (e.g., "search for X")',
+        'User asks to search for topics in stored data (e.g., "find discussions about Y")',
+        'User explicitly requests to "search" or "find" something in recordings',
+        "User wants to retrieve information from recorded content by topic"
+      ],
+      instance: this.vectorSearchTool
+    })
+
+    this.indexTool("vector_list_tool", {
+      name: "vector_list_tool",
+      description: "Lists all chunks stored in VectorDB with pagination support",
+      capabilities: [
+        "View all recorded chunks",
+        "Browse stored recordings with previews",
+        "List data with pagination",
+        "Show overview of stored content"
+      ],
+      useWhen: [
+        'User wants to see all recordings (e.g., "show me all my data")',
+        'User asks "what data do I have stored" or "list my recordings"',
+        "User requests data overview or inventory",
+        'User wants to browse recorded content (e.g., "show all chunks")'
+      ],
+      instance: this.vectorListTool
+    })
+
+    this.indexTool("vector_count_tool", {
+      name: "vector_count_tool",
+      description: "Gets statistics about stored chunks in VectorDB",
+      capabilities: [
+        "Count total chunks stored",
+        "Provide storage statistics",
+        "Show database metrics",
+        "Analyze data quality"
+      ],
+      useWhen: [
+        'User asks "how many recordings do I have"',
+        "User requests storage statistics or metrics",
+        'User checks database state (e.g., "storage count")',
+        'User wants quick overview (e.g., "what\'s my storage size")'
+      ],
+      instance: this.vectorCountTool
+    })
+
+    this.indexTool("vector_delete_tool", {
+      name: "vector_delete_tool",
+      description: "Deletes specific chunks from VectorDB (requires confirmation)",
+      capabilities: [
+        "Delete specific chunks by ID",
+        "Remove unwanted recordings",
+        "Clean up old data",
+        "Clear selected chunks"
+      ],
+      useWhen: [
+        'User wants to delete specific chunks by ID (e.g., "delete chunk_123")',
+        'User requests data cleanup (e.g., "remove old recordings")',
+        "User wants to clear unwanted data",
+        'User says "delete" or "remove" recordings'
+      ],
+      instance: this.vectorDeleteTool
     })
 
     if (this.enableDebugLogging) {
@@ -126,6 +216,10 @@ export class ToolRouter {
       this.diagramCreatorTool.setSummaryStorage(summaryStorage)
       print("ToolRouter: Connected SummaryStorage to DiagramCreatorTool")
     }
+    if (this.generalConversationTool) {
+      this.generalConversationTool.setSummaryStorage(summaryStorage)
+      print("ToolRouter: Connected SummaryStorage to GeneralConversationTool")
+    }
   }
 
   /**
@@ -136,6 +230,24 @@ export class ToolRouter {
       this.diagramCreatorTool.setChatStorage(chatStorage)
       print("ToolRouter: Connected ChatStorage to DiagramCreatorTool")
     }
+  }
+
+  /**
+   * Set the RemoteVectorMemoryClient for tools that need VectorDB access
+   */
+  public setVectorClient(client: RemoteVectorMemoryClient): void {
+    // Connect to GeneralConversationTool for auto-search
+    if (this.generalConversationTool) {
+      this.generalConversationTool.setVectorClient(client)
+      print("ToolRouter: ✅ Connected VectorDB client to GeneralConversationTool (auto-search)")
+    }
+    
+    // Connect to VectorDB CRUD tools
+    this.vectorSearchTool.setRemoteClient(client)
+    this.vectorListTool.setRemoteClient(client)
+    this.vectorCountTool.setRemoteClient(client)
+    this.vectorDeleteTool.setRemoteClient(client)
+    print("ToolRouter: ✅ Connected VectorDB client to all 4 CRUD tools")
   }
 
   /**
@@ -152,7 +264,7 @@ export class ToolRouter {
    * AI-powered intelligent routing - uses LLM to make routing decisions
    */
   public async routeQuery(args: Record<string, unknown>): Promise<{success: boolean; result?: any; error?: string}> {
-    const {query, summaryContext} = args
+    const {query, summaryContext, retrievalContext} = args
 
     if (!query || typeof query !== "string") {
       return {success: false, error: "Query parameter is required and must be a string"}
@@ -160,7 +272,7 @@ export class ToolRouter {
 
     try {
       // Get routing decision from AI
-      const selectedTool = await this.getAIRoutingDecision(query as string, summaryContext)
+      const selectedTool = await this.getAIRoutingDecision(query as string, summaryContext, retrievalContext as any)
 
       if (!selectedTool || !this.toolIndex.has(selectedTool)) {
         print(`ToolRouter: AI selected unknown tool "${selectedTool}", falling back to general_conversation`)
@@ -189,7 +301,7 @@ export class ToolRouter {
   /**
    * Use AI to make intelligent routing decision based on context and intent
    */
-  private async getAIRoutingDecision(query: string, summaryContext?: any): Promise<string> {
+  private async getAIRoutingDecision(query: string, summaryContext?: any, retrievalContext?: any): Promise<string> {
     // Build tool index description for AI
     const toolDescriptions = Array.from(this.toolIndex.values())
       .map((tool) => {
@@ -208,6 +320,9 @@ export class ToolRouter {
 - Summary Content: ${summaryContext.content ? "Yes" : "No"}
 - Key Points Available: ${summaryContext.keyPoints ? summaryContext.keyPoints.length + " points" : "No"}`
     }
+    if (retrievalContext && typeof retrievalContext === "string" && retrievalContext.trim().length > 0) {
+      contextInfo += `\n\nLATEST TRANSCRIPT EXCERPTS AVAILABLE: Yes`
+    }
 
     const routingPrompt = `You are an intelligent tool router for an educational AI assistant. Analyze the user query and select the most appropriate tool.
 
@@ -220,9 +335,13 @@ ROUTING RULES:
 1. If user asks about "the lecture" or lecture content, and summary context is available, use "summary_tool"
 2. If user requests diagrams, visualizations, or mind maps, use "diagram_tool"  
 3. If user asks about current/live environment or "what do you see", use "spatial_tool"
-4. For general questions without specific tool needs, use "general_conversation"
+4. If user explicitly wants to SEARCH recorded data (e.g., "search for...", "find recordings about..."), use "vector_search_tool"
+5. If user wants to LIST/VIEW all recordings (e.g., "show all my data", "list recordings"), use "vector_list_tool"
+6. If user asks HOW MANY/COUNT (e.g., "how many recordings", "storage count"), use "vector_count_tool"
+7. If user wants to DELETE data (e.g., "delete chunk_XXX", "remove recordings"), use "vector_delete_tool"
+8. For general questions or when user asks about recordings but doesn't explicitly request search/list/count/delete, use "general_conversation" (it will auto-search VectorDB for context)
 
-Respond with ONLY the tool name (e.g., "summary_tool", "diagram_tool", "spatial_tool", "general_conversation").`
+Respond with ONLY the tool name (e.g., "summary_tool", "vector_search_tool", "general_conversation").`
 
     try {
       // Get routing decision from current language interface

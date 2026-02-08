@@ -3,8 +3,11 @@ import { clearTimeout, setTimeout } from "SpectaclesInteractionKit.lspkg/Utils/F
 import { ChatComponent } from "../Components/ChatComponent"
 import { SummaryComponent } from "../Components/SummaryComponent"
 import { GeminiAssistant } from "../Core/GeminiAssistant"
+import { OpenAIEmbedder } from "../Core/OpenAIEmbedder"
 import { OpenAIAssistant } from "../Core/OpenAIAssistant"
+import { RemoteVectorMemoryClient } from "../Storage/RemoteVectorMemoryClient"
 import { StorageManager } from "../Storage/StorageManager"
+import { VectorStore } from "../Storage/VectorStore"
 import { ToolRouter } from "../Tools/ToolRouter"
 import { AgentLanguageInterface } from "./AgentLanguageInterface"
 import { AgentMemorySystem } from "./AgentMemorySystem"
@@ -51,6 +54,11 @@ export class AgentOrchestrator extends BaseScriptComponent {
   storageManager: StorageManager = null
 
   @input
+  @allowUndefined
+  @hint("VectorIngestController for remote VectorDB access (optional)")
+  vectorIngestController: any = null
+
+  @input
   @hint("Text display component for tool usage information")
   toolDisplayText: Text = null
 
@@ -83,6 +91,25 @@ export class AgentOrchestrator extends BaseScriptComponent {
   @input showToolUsage: boolean = true
   @input showQueryRouting: boolean = true
   @ui.group_end
+  @ui.group_start("Vector Memory (Demo)")
+  @input
+  @hint("Enable semantic retrieval from latest recorded transcript (vector store)")
+  enableVectorMemory: boolean = true
+  @input
+  @hint("Vector memory source")
+  @widget(new ComboBoxWidget([new ComboBoxItem("local", "Local (Persistent Storage)"), new ComboBoxItem("remote", "Remote (Local Qdrant via WS)")]))
+  vectorMemoryMode: string = "local"
+  @input
+  @allowUndefined
+  @hint("InternetModule required for remote mode WebSocket connection")
+  internetModule: InternetModule = null
+  @input
+  @hint("Remote vector service WebSocket URL")
+  remoteVectorWsUrl: string = "ws://127.0.0.1:8787/ws"
+  @input
+  @hint("Top-K transcript chunks to retrieve per query")
+  vectorTopK: number = 3
+  @ui.group_end
 
   // ================================
   // Core System Components
@@ -91,6 +118,9 @@ export class AgentOrchestrator extends BaseScriptComponent {
   private toolExecutor: AgentToolExecutor = null
   private memorySystem: AgentMemorySystem = null
   private toolRouter: ToolRouter = null
+  private vectorStore: VectorStore | null = null
+  private vectorEmbedder: OpenAIEmbedder | null = null
+  private remoteVectorClient: RemoteVectorMemoryClient | null = null
 
   // ================================
   // State Management
@@ -206,6 +236,9 @@ export class AgentOrchestrator extends BaseScriptComponent {
     const diagramStorage = this.storageManager ? this.storageManager.getDiagramStorage() : null
     this.toolRouter = new ToolRouter(this.languageInterface, diagramStorage)
 
+    // Initialize vector memory (local persistent or remote WS)
+    this.initializeVectorMemory()
+
     // Connect summary and chat storage to the tool router if available
     if (this.storageManager) {
       const summaryStorage = this.storageManager.getSummaryStorage()
@@ -217,6 +250,28 @@ export class AgentOrchestrator extends BaseScriptComponent {
       if (chatStorage) {
         this.toolRouter.setChatStorage(chatStorage)
       }
+    }
+
+    // Connect RemoteVectorMemoryClient to ToolRouter for VectorDB access in GeneralConversationTool
+    // Priority 1: Try VectorIngestController's remote client (if available)
+    if (this.vectorIngestController && typeof this.vectorIngestController.getRemoteClient === 'function') {
+      const vectorClient = this.vectorIngestController.getRemoteClient()
+      if (vectorClient) {
+        this.toolRouter.setVectorClient(vectorClient)
+        print("AgentOrchestrator: ✅ Connected VectorIngestController's RemoteClient to ToolRouter")
+        print("AgentOrchestrator: 🔍 GeneralConversationTool will auto-search VectorDB for context")
+      } else {
+        print("AgentOrchestrator: ⚠️ VectorIngestController present but getRemoteClient() returned null")
+      }
+    }
+    // Priority 2: Fall back to AgentOrchestrator's own remoteVectorClient (if in remote mode)
+    else if (this.remoteVectorClient) {
+      this.toolRouter.setVectorClient(this.remoteVectorClient)
+      print("AgentOrchestrator: ✅ Connected AgentOrchestrator's RemoteVectorClient to ToolRouter")
+    } else if (this.vectorMemoryMode === "remote") {
+      print("AgentOrchestrator: ⚠️ Remote vector mode enabled but remoteVectorClient is null")
+    } else if (!this.vectorIngestController) {
+      print("AgentOrchestrator: ℹ️ No VectorIngestController assigned - GeneralConversationTool won't have VectorDB access")
     }
 
     // Register the intelligent tool router as the main tool
@@ -513,10 +568,12 @@ export class AgentOrchestrator extends BaseScriptComponent {
       this.systemState.timestamp = Date.now()
 
       // Prepare context for tool execution
+      const retrievalContext = await this.getVectorRetrievalContext(query)
       const toolArgs = {
         query: query,
         context: this.getConversationContext(),
         summaryContext: this.getSummaryContext(),
+        retrievalContext: retrievalContext,
         maxLength: 300, // Character limit for responses
         educationalFocus: true,
         textOnly: !this.enableVoiceOutput // Disable voice if enableVoiceOutput is false
@@ -527,10 +584,14 @@ export class AgentOrchestrator extends BaseScriptComponent {
         const summaryCtx = this.getSummaryContext()
         if (summaryCtx) {
           print(
-            `AgentOrchestrator: 📚 Summary context: title="${summaryCtx.title}", sections=${summaryCtx.summaries ? summaryCtx.summaries.length : 0}, mockData=${summaryCtx.mockData || false}`
+            `AgentOrchestrator: 📚 Summary context FOUND: title="${summaryCtx.title}", sections=${summaryCtx.summaries ? summaryCtx.summaries.length : 0}, mockData=${summaryCtx.mockData || false}`
           )
+          if (summaryCtx.summaries && summaryCtx.summaries.length > 0) {
+            print(`AgentOrchestrator: 📝 First section: "${summaryCtx.summaries[0].title}"`)
+            print(`AgentOrchestrator: ✅ Gemini will have access to this lecture data`)
+          }
         } else {
-          print(`AgentOrchestrator: 📚 No summary context available`)
+          print(`AgentOrchestrator: ⚠️ NO summary context available - Gemini will NOT have lecture data`)
         }
       }
 
@@ -658,13 +719,112 @@ export class AgentOrchestrator extends BaseScriptComponent {
     return this.memorySystem.getChatHistory().slice(-this.conversationContextMessages)
   }
 
+  private initializeVectorMemory(): void {
+    // Local persistent mode (default)
+    if (this.vectorMemoryMode === "local") {
+      try {
+        this.vectorEmbedder = new OpenAIEmbedder({
+          model: "gpt-4o-mini",
+          dimensions: 64,
+          enableDebugLogging: false
+        })
+        this.vectorStore = new VectorStore(this.vectorEmbedder, {enableDebugLogging: false})
+        this.remoteVectorClient = null
+
+        if (this.enableDebugLogging) {
+          const session = this.vectorStore.getSession()
+          print(
+            `AgentOrchestrator: Vector memory LOCAL initialized (latest session chunks: ${session?.chunks?.length || 0})`
+          )
+        }
+      } catch (error) {
+        this.vectorStore = null
+        this.vectorEmbedder = null
+        print(`AgentOrchestrator: Local vector memory init failed: ${error}`)
+      }
+      return
+    }
+
+    // Remote mode (local computer service)
+    if (this.vectorMemoryMode === "remote") {
+      this.vectorStore = null
+      this.vectorEmbedder = null
+
+      if (!this.internetModule) {
+        print("AgentOrchestrator: vectorMemoryMode=remote but InternetModule not assigned")
+        this.remoteVectorClient = null
+        return
+      }
+
+      this.remoteVectorClient = new RemoteVectorMemoryClient(this.internetModule, this.remoteVectorWsUrl, {
+        enableDebugLogging: false
+      })
+
+      if (this.enableDebugLogging) {
+        print(`AgentOrchestrator: Vector memory REMOTE initialized (${this.remoteVectorWsUrl})`)
+      }
+    }
+  }
+
+  private async getVectorRetrievalContext(query: string): Promise<string> {
+    if (!this.enableVectorMemory) return ""
+
+    const q = (query || "").trim()
+    if (q.length < 8) return ""
+
+    try {
+      const topK = Math.max(1, Math.min(this.vectorTopK || 3, 5))
+      let lines: string[] = []
+
+      if (this.vectorMemoryMode === "remote" && this.remoteVectorClient) {
+        const matches = await this.remoteVectorClient.search(q, topK)
+        if (!matches || matches.length === 0) return ""
+        lines = matches.map((m) => `- (${(m.score || 0).toFixed(2)}) ${(m.text || "").replace(/\\s+/g, " ").trim()}`)
+      } else if (this.vectorMemoryMode === "local" && this.vectorStore) {
+        const results = await this.vectorStore.search(q, topK)
+        if (!results || results.length === 0) return ""
+        lines = results.map(
+          (r) => `- (${(r.score || 0).toFixed(2)}) ${(r.chunk.text || "").replace(/\\s+/g, " ").trim()}`
+        )
+      } else {
+        return ""
+      }
+
+      // Keep it compact to avoid prompt bloat
+      const maxChars = 900
+      let ctx = "LATEST RECORDED TRANSCRIPT EXCERPTS (use as factual context if relevant):\n"
+      for (let i = 0; i < lines.length; i++) {
+        ctx += `${lines[i]}\n`
+        if (ctx.length >= maxChars) {
+          ctx = ctx.substring(0, maxChars - 10) + "\n[truncated]"
+          break
+        }
+      }
+
+      if (this.enableDebugLogging) {
+        print(`AgentOrchestrator: 🔎 Vector retrieval added ${lines.length} chunks for query`)
+      }
+
+      return ctx
+    } catch (error) {
+      if (this.enableDebugLogging) {
+        print(`AgentOrchestrator: Vector retrieval failed: ${error}`)
+      }
+      return ""
+    }
+  }
+
   private getSummaryContext(): any {
+    print(`AgentOrchestrator: getSummaryContext() called`)
+    
     // Get the real summary from SummaryStorage through StorageManager
     if (this.storageManager && this.storageManager.getSummaryStorage()) {
+      print(`AgentOrchestrator: StorageManager and SummaryStorage available`)
       const summaryStorage = this.storageManager.getSummaryStorage()
       const currentSummary = summaryStorage.getCurrentSummary()
 
       if (currentSummary && currentSummary.sections && currentSummary.sections.length > 0) {
+        print(`AgentOrchestrator: ✅ Current summary found with ${currentSummary.sections.length} sections`)
         // Convert to the format expected by SummaryTool
         return {
           title: currentSummary.summaryTitle || "Lecture Summary",
@@ -677,11 +837,16 @@ export class AgentOrchestrator extends BaseScriptComponent {
           totalCharacters: currentSummary.totalCharacters,
           timestamp: currentSummary.createdAt || Date.now()
         }
+      } else {
+        print(`AgentOrchestrator: ❌ No current summary found (currentSummary=${!!currentSummary}, sections=${currentSummary?.sections?.length || 0})`)
       }
+    } else {
+      print(`AgentOrchestrator: ❌ StorageManager or SummaryStorage NOT available`)
     }
 
     // Only use test data if explicitly in test mode and no real summary exists
     if (this.enableTestMode) {
+      print(`AgentOrchestrator: Using test/mock data (enableTestMode=true)`)
       return {
         title: "AI & Machine Learning Lecture Summary",
         content:
@@ -698,6 +863,7 @@ export class AgentOrchestrator extends BaseScriptComponent {
       }
     }
 
+    print(`AgentOrchestrator: Returning NULL (no summary context available)`)
     return null
   }
 

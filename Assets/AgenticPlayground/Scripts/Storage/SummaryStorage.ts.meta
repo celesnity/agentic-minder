@@ -28,7 +28,9 @@
   ScriptInputsHidden:
     currentSummaryTitle: false
     enableDebugLogging: false
+    enablePersistentStorage: false
     enableStorage: false
+    enableStorageExports: false
     maxStoredSummaries: false
   ScriptTypesHidden:
     {}
@@ -40,6 +42,8 @@
     []
   DefaultScriptInputs:
     - enableStorage: true
+      enablePersistentStorage: true
+      enableStorageExports: true
       enableDebugLogging: false
       maxStoredSummaries: !<float> 5.000000
       currentSummaryTitle: Lecture Summary
@@ -48,6 +52,8 @@
       {}
   InputLines:
     - '// @input bool enableStorage = true {"hint":"Enable automatic summary storage"}'
+    - '// @input bool enablePersistentStorage = true {"hint":"Persist summary/transcript to Lens Studio Persistent Storage (disable for vectorDB-only demos)"}'
+    - '// @input bool enableStorageExports = true {"hint":"Export transcript/summary text files into Persistent Storage panel (disable for vectorDB-only demos)"}'
     - '// @input bool enableDebugLogging {"hint":"Enable debug logging for storage operations"}'
     - '// @input float maxStoredSummaries = 5 {"hint":"Maximum number of summaries to store", "widget":"slider", "min":1, "max":20, "step":1}'
     - '// @input string currentSummaryTitle = "Lecture Summary" {"hint":"Current summary title"}'

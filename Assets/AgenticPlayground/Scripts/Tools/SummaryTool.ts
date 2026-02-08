@@ -36,7 +36,14 @@ export class SummaryTool {
   }
 
   public async execute(args: Record<string, unknown>): Promise<{ success: boolean; result?: any; error?: string }> {
-    const { query, context, summaryContext, maxLength = CHARACTER_LIMITS.BOT_CARD_TEXT, educationalFocus = true } = args
+    const {
+      query,
+      context,
+      summaryContext,
+      retrievalContext,
+      maxLength = CHARACTER_LIMITS.BOT_CARD_TEXT,
+      educationalFocus = true
+    } = args
 
     if (!query || typeof query !== "string") {
       return { success: false, error: "Query parameter is required and must be a string" }
@@ -46,7 +53,7 @@ export class SummaryTool {
       print(`SummaryTool: 📋 Processing summary-focused query: "${(query as string).substring(0, 50)}..."`)
 
       // Build enhanced system prompt with summary context injection
-      const systemPrompt = this.buildSummarySystemPrompt(summaryContext, educationalFocus as boolean)
+      const systemPrompt = this.buildSummarySystemPrompt(summaryContext, educationalFocus as boolean, retrievalContext as any)
 
       // Prepare conversation context
       const conversationHistory = this.prepareConversationHistory(context, query as string)
@@ -83,8 +90,14 @@ export class SummaryTool {
   /**
    * Build system prompt with summary context injection
    */
-  private buildSummarySystemPrompt(summaryContext: any, educationalFocus: boolean): string {
+  private buildSummarySystemPrompt(summaryContext: any, educationalFocus: boolean, retrievalContext?: any): string {
     let prompt = "You are answering specific questions regarding this document:\n\n"
+
+    // Inject vector retrieval context (latest recorded transcript excerpts)
+    if (retrievalContext && typeof retrievalContext === "string" && retrievalContext.trim().length > 0) {
+      prompt += `${retrievalContext.trim()}\n\n`
+      prompt += "Use the transcript excerpts as additional context if relevant.\n\n"
+    }
 
     // Inject summary content into system prompt
     if (summaryContext && summaryContext.summaries && Array.isArray(summaryContext.summaries)) {

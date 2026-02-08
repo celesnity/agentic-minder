@@ -103,12 +103,16 @@ export class SummaryASRController extends BaseScriptComponent {
     // Setup mic button
     if (this.micButton) {
       this.micButton.onButtonPinched.add(() => {
+        print(`SummaryASRController: 🔘 MIC BUTTON PINCHED - isRecording before toggle: ${this.isRecording}`)
         this.toggleRecordingSession()
+        print(`SummaryASRController: 🔘 After toggle - isRecording: ${this.isRecording}`)
       })
 
       if (this.enableDebugLogging) {
         print("SummaryASRController: Mic button configured")
       }
+    } else {
+      print("SummaryASRController: ⚠️ WARNING: micButton is NOT assigned!")
     }
   }
 
@@ -116,9 +120,13 @@ export class SummaryASRController extends BaseScriptComponent {
    * Toggle recording session on/off
    */
   public toggleRecordingSession(): void {
+    print(`SummaryASRController: 🎤 toggleRecordingSession called - current state: ${this.isRecording ? 'RECORDING' : 'STOPPED'}`)
+    
     if (this.isRecording) {
+      print(`SummaryASRController: ⏹️ Attempting to STOP recording...`)
       this.stopRecordingSession()
     } else {
+      print(`SummaryASRController: ▶️ Attempting to START recording...`)
       this.startRecordingSession()
     }
   }
@@ -155,15 +163,22 @@ export class SummaryASRController extends BaseScriptComponent {
    * Stop recording session and finalize summary text
    */
   public stopRecordingSession(): void {
+    print(`SummaryASRController: ⏹️ stopRecordingSession called - isRecording: ${this.isRecording}`)
+    
     if (!this.isRecording) {
-      if (this.enableDebugLogging) {
-        print("SummaryASRController: Not currently recording")
-      }
+      print("SummaryASRController: ⚠️ Not currently recording, cannot stop")
       return
     }
 
+    print(`SummaryASRController: 🛑 Stopping ASR and setting isRecording to false...`)
     this.isRecording = false
-    this.asrModule.stopTranscribing()
+    
+    try {
+      this.asrModule.stopTranscribing()
+      print(`SummaryASRController: ✅ ASR stopTranscribing() called successfully`)
+    } catch (error) {
+      print(`SummaryASRController: ❌ Error stopping ASR: ${error}`)
+    }
 
     // Stop visual feedback
     this.animateActivityIndicator(false)
@@ -180,9 +195,7 @@ export class SummaryASRController extends BaseScriptComponent {
     this.onSessionEnded.invoke()
 
     const sessionDuration = (Date.now() - this.sessionStartTime) / 1000
-    if (this.enableDebugLogging) {
-      print(`SummaryASRController: Recording session ended after ${sessionDuration.toFixed(1)}s`)
-    }
+    print(`SummaryASRController: ✅ Recording session ended after ${sessionDuration.toFixed(1)}s - isRecording now: ${this.isRecording}`)
   }
 
   /**

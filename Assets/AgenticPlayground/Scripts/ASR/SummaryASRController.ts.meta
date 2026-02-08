@@ -45,7 +45,7 @@
       micButton: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
       activityIndicator: !<reference.RenderMeshVisual> 00000000-0000-0000-0000-000000000000
       enableDebugLogging: true
-      autoStartRecording: false
+      autoStartRecording: true
       maxSessionDuration: !<float> 3600.000000
   ScriptTypes:
     -
