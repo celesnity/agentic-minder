@@ -74,6 +74,10 @@ export class VectorIngestController extends BaseScriptComponent {
   private isSessionActive: boolean = false
   private isFlushing: boolean = false
 
+  public getRemoteClient(): RemoteVectorMemoryClient | null {
+    return this.remoteClient
+  }
+
   onAwake() {
     // Always log so it's obvious whether this component is present in the scene.
     print("VectorIngestController: 🌱 onAwake - Component is present in scene")

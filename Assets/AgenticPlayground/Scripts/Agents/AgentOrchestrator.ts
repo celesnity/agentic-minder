@@ -770,7 +770,8 @@ export class AgentOrchestrator extends BaseScriptComponent {
     if (!this.enableVectorMemory) return ""
 
     const q = (query || "").trim()
-    if (q.length < 8) return ""
+    // Allow short spoken prompts like "what now?" to still use retrieval.
+    if (q.length < 4) return ""
 
     try {
       const topK = Math.max(1, Math.min(this.vectorTopK || 3, 5))
