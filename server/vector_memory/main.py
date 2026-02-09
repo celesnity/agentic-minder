@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -370,7 +371,17 @@ async def ws_endpoint(ws: WebSocket):
         logger.info("🎧 WebSocket: Listening for messages...")
         
         while True:
-            msg = await ws.receive_json()
+            # Handle JSON parsing errors gracefully to prevent connection drops
+            try:
+                msg = await ws.receive_json()
+            except json.JSONDecodeError as e:
+                logger.warning("⚠️ WebSocket: JSON decode error - %s", str(e))
+                logger.warning("   Skipping malformed message and continuing")
+                continue
+            except Exception as e:
+                logger.error("❌ WebSocket: Error receiving message - %s", str(e))
+                break
+            
             req_id = msg.get("id")
             op = msg.get("op")
             

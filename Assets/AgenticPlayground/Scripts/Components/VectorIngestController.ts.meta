@@ -55,8 +55,8 @@
       enableDebugLogging: true
       chunkSizeChars: !<float> 50.000000
       chunkOverlapChars: !<float> 40.000000
-      embeddingModel: gpt-4o-mini
-      embeddingDimensions: !<float> 64.000000
+      embeddingModel: ""
+      embeddingDimensions: !<float> 0.000000
   ScriptTypes:
     -
       {}

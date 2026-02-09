@@ -69,15 +69,15 @@
       conversationContextMessages: !<float> 10.000000
       toolTimeout: !<float> 15000.000000
       maxRetries: !<float> 3.000000
-      defaultProvider: openai
+      defaultProvider: Gemini
       enableVoiceOutput: true
       enableDebugLogging: true
       showToolUsage: true
       showQueryRouting: true
       enableVectorMemory: true
-      vectorMemoryMode: local
-      internetModule: !<reference.InternetModule> 00000000-0000-0000-0000-000000000000
-      remoteVectorWsUrl: "ws://127.0.0.1:8787/ws"
+      vectorMemoryMode: Remote (Local Qdrant via WS)
+      internetModule: !<reference.InternetModule> 1a3c3875-b801-46fc-a892-09bf2f782997
+      remoteVectorWsUrl: "ws://192.168.40.51:8787/ws"
       vectorTopK: !<float> 3.000000
   ScriptTypes:
     -
@@ -110,7 +110,7 @@
     - '// @ui {"widget":"group_end"}'
     - '// @ui {"widget":"group_start", "label":"Vector Memory (Demo)"}'
     - '// @input bool enableVectorMemory = true {"hint":"Enable semantic retrieval from latest recorded transcript (vector store)"}'
-    - '// @input string vectorMemoryMode = "local" {"hint":"Vector memory source", "widget":"combobox", "values":[{"label":"local", "value":"Local (Persistent Storage)"}, {"label":"remote", "value":"Remote (Local Qdrant via WS)"}]}'
+    - '// @input string vectorMemoryMode = "remote" {"hint":"Vector memory source", "widget":"combobox", "values":[{"label":"local", "value":"Local (Persistent Storage)"}, {"label":"remote", "value":"Remote (Local Qdrant via WS)"}]}'
     - '// @input Asset.InternetModule internetModule {"hint":"InternetModule required for remote mode WebSocket connection"}'
     - '// @input string remoteVectorWsUrl = "ws://127.0.0.1:8787/ws" {"hint":"Remote vector service WebSocket URL"}'
     - '// @input float vectorTopK = 3 {"hint":"Top-K transcript chunks to retrieve per query"}'

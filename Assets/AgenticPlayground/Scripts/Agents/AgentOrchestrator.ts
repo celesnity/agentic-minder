@@ -98,7 +98,7 @@ export class AgentOrchestrator extends BaseScriptComponent {
   @input
   @hint("Vector memory source")
   @widget(new ComboBoxWidget([new ComboBoxItem("local", "Local (Persistent Storage)"), new ComboBoxItem("remote", "Remote (Local Qdrant via WS)")]))
-  vectorMemoryMode: string = "local"
+  vectorMemoryMode: string = "remote"
   @input
   @allowUndefined
   @hint("InternetModule required for remote mode WebSocket connection")
@@ -264,15 +264,18 @@ export class AgentOrchestrator extends BaseScriptComponent {
         print("AgentOrchestrator: ⚠️ VectorIngestController present but getRemoteClient() returned null")
       }
     }
-    // Priority 2: Fall back to AgentOrchestrator's own remoteVectorClient (if in remote mode)
+    // Priority 2: Fall back to AgentOrchestrator's own remoteVectorClient (created in initializeVectorMemory)
     else if (this.remoteVectorClient) {
       this.toolRouter.setVectorClient(this.remoteVectorClient)
       print("AgentOrchestrator: ✅ Connected AgentOrchestrator's RemoteVectorClient to ToolRouter")
-    } else if (this.vectorMemoryMode === "remote") {
-      print("AgentOrchestrator: ⚠️ Remote vector mode enabled but remoteVectorClient is null")
-    } else if (!this.vectorIngestController) {
-      print("AgentOrchestrator: ℹ️ No VectorIngestController assigned - GeneralConversationTool won't have VectorDB access")
+      print("AgentOrchestrator: 🔍 GeneralConversationTool will auto-search VectorDB for context")
+    } else if (this.vectorMemoryMode === "remote" && !this.vectorIngestController) {
+      print("AgentOrchestrator: ⚠️ Remote vector mode enabled but no VectorDB client available")
+      print("AgentOrchestrator: ℹ️ Make sure 'internetModule' is assigned in the Inspector")
+    } else if (!this.vectorIngestController && this.vectorMemoryMode !== "remote") {
+      print("AgentOrchestrator: ℹ️ VectorDB disabled (vectorMemoryMode is 'local' and no VectorIngestController)")
     }
+
 
     // Register the intelligent tool router as the main tool
     this.toolExecutor.registerTool({
@@ -728,7 +731,7 @@ export class AgentOrchestrator extends BaseScriptComponent {
           dimensions: 64,
           enableDebugLogging: false
         })
-        this.vectorStore = new VectorStore(this.vectorEmbedder, {enableDebugLogging: false})
+        this.vectorStore = new VectorStore(this.vectorEmbedder, { enableDebugLogging: false })
         this.remoteVectorClient = null
 
         if (this.enableDebugLogging) {
@@ -750,37 +753,100 @@ export class AgentOrchestrator extends BaseScriptComponent {
       this.vectorStore = null
       this.vectorEmbedder = null
 
-      if (!this.internetModule) {
-        print("AgentOrchestrator: vectorMemoryMode=remote but InternetModule not assigned")
+      // FIX: Use VectorIngestController's client if available (shared instance)
+      // This ensures ingested data is retrievable by using the same WebSocket connection
+      if (this.vectorIngestController && typeof this.vectorIngestController.getRemoteClient === 'function') {
+        this.remoteVectorClient = this.vectorIngestController.getRemoteClient()
+
+        if (this.remoteVectorClient) {
+          print("AgentOrchestrator: ✅ Using SHARED RemoteVectorMemoryClient from VectorIngestController")
+          print("AgentOrchestrator: 🔗 This ensures ingested data is retrievable for queries")
+
+          if (this.enableDebugLogging) {
+            print(`AgentOrchestrator: Vector memory REMOTE initialized (shared connection)`)
+          }
+        } else {
+          print("AgentOrchestrator: ⚠️ VectorIngestController.getRemoteClient() returned null")
+          print("AgentOrchestrator: ℹ️ Falling back to creating separate RemoteVectorMemoryClient")
+
+          // Fallback: Create own instance
+          if (this.internetModule) {
+            this.remoteVectorClient = new RemoteVectorMemoryClient(this.internetModule, this.remoteVectorWsUrl, {
+              enableDebugLogging: false
+            })
+            print(`AgentOrchestrator: Vector memory REMOTE initialized (${this.remoteVectorWsUrl})`)
+          } else {
+            print("AgentOrchestrator: ❌ No InternetModule available for fallback")
+            this.remoteVectorClient = null
+          }
+        }
+      } else if (this.internetModule) {
+        // Fallback: Create own instance if VectorIngestController not available
+        print("AgentOrchestrator: ⚠️ VectorIngestController not assigned or doesn't have getRemoteClient()")
+        print("AgentOrchestrator: 📝 Creating separate RemoteVectorMemoryClient instance")
+
+        this.remoteVectorClient = new RemoteVectorMemoryClient(this.internetModule, this.remoteVectorWsUrl, {
+          enableDebugLogging: false
+        })
+
+        if (this.enableDebugLogging) {
+          print(`AgentOrchestrator: Vector memory REMOTE initialized (${this.remoteVectorWsUrl})`)
+        }
+      } else {
+        print("AgentOrchestrator: ❌ vectorMemoryMode=remote but no InternetModule or VectorIngestController")
         this.remoteVectorClient = null
         return
-      }
-
-      this.remoteVectorClient = new RemoteVectorMemoryClient(this.internetModule, this.remoteVectorWsUrl, {
-        enableDebugLogging: false
-      })
-
-      if (this.enableDebugLogging) {
-        print(`AgentOrchestrator: Vector memory REMOTE initialized (${this.remoteVectorWsUrl})`)
       }
     }
   }
 
   private async getVectorRetrievalContext(query: string): Promise<string> {
-    if (!this.enableVectorMemory) return ""
+    if (!this.enableVectorMemory) {
+      if (this.enableDebugLogging) {
+        print("AgentOrchestrator: 🔕 Vector memory disabled, skipping retrieval")
+      }
+      return ""
+    }
 
     const q = (query || "").trim()
     // Allow short spoken prompts like "what now?" to still use retrieval.
-    if (q.length < 4) return ""
+    if (q.length < 4) {
+      if (this.enableDebugLogging) {
+        print(`AgentOrchestrator: ⏭️ Query too short (${q.length} chars), skipping vector retrieval`)
+      }
+      return ""
+    }
 
     try {
       const topK = Math.max(1, Math.min(this.vectorTopK || 3, 5))
       let lines: string[] = []
 
       if (this.vectorMemoryMode === "remote" && this.remoteVectorClient) {
+        if (this.enableDebugLogging) {
+          print(`AgentOrchestrator: 🔍 Searching VectorDB for: "${q.substring(0, 50)}..."`)
+          print(`AgentOrchestrator: 🔗 Using RemoteVectorMemoryClient: ${this.remoteVectorClient ? 'CONNECTED' : 'NULL'}`)
+        }
+
         const matches = await this.remoteVectorClient.search(q, topK)
-        if (!matches || matches.length === 0) return ""
+
+        if (this.enableDebugLogging) {
+          print(`AgentOrchestrator: 📊 VectorDB search returned ${matches ? matches.length : 0} matches`)
+        }
+
+        if (!matches || matches.length === 0) {
+          print("AgentOrchestrator: ⚠️ No matches found in VectorDB")
+          print("AgentOrchestrator: 💡 Tip: Check if data was ingested (look for VectorIngestController logs)")
+          return ""
+        }
+
         lines = matches.map((m) => `- (${(m.score || 0).toFixed(2)}) ${(m.text || "").replace(/\\s+/g, " ").trim()}`)
+
+        if (this.enableDebugLogging) {
+          print(`AgentOrchestrator: ✅ Found ${lines.length} relevant chunks`)
+          lines.forEach((line, idx) => {
+            print(`AgentOrchestrator:   [${idx + 1}] ${line.substring(0, 80)}...`)
+          })
+        }
       } else if (this.vectorMemoryMode === "local" && this.vectorStore) {
         const results = await this.vectorStore.search(q, topK)
         if (!results || results.length === 0) return ""
@@ -788,6 +854,12 @@ export class AgentOrchestrator extends BaseScriptComponent {
           (r) => `- (${(r.score || 0).toFixed(2)}) ${(r.chunk.text || "").replace(/\\s+/g, " ").trim()}`
         )
       } else {
+        if (this.enableDebugLogging) {
+          print(`AgentOrchestrator: ⚠️ Vector retrieval skipped`)
+          print(`AgentOrchestrator:   - Mode: ${this.vectorMemoryMode}`)
+          print(`AgentOrchestrator:   - Remote client: ${this.remoteVectorClient ? 'EXISTS' : 'NULL'}`)
+          print(`AgentOrchestrator:   - Local store: ${this.vectorStore ? 'EXISTS' : 'NULL'}`)
+        }
         return ""
       }
 
@@ -808,8 +880,9 @@ export class AgentOrchestrator extends BaseScriptComponent {
 
       return ctx
     } catch (error) {
+      print(`AgentOrchestrator: ❌ Vector retrieval ERROR: ${error}`)
       if (this.enableDebugLogging) {
-        print(`AgentOrchestrator: Vector retrieval failed: ${error}`)
+        print(`AgentOrchestrator: 🔍 Error details: ${JSON.stringify(error)}`)
       }
       return ""
     }
@@ -817,7 +890,7 @@ export class AgentOrchestrator extends BaseScriptComponent {
 
   private getSummaryContext(): any {
     print(`AgentOrchestrator: getSummaryContext() called`)
-    
+
     // Get the real summary from SummaryStorage through StorageManager
     if (this.storageManager && this.storageManager.getSummaryStorage()) {
       print(`AgentOrchestrator: StorageManager and SummaryStorage available`)
