@@ -6,6 +6,8 @@ import { GeminiAssistant } from "../Core/GeminiAssistant"
 import { OpenAIAssistant } from "../Core/OpenAIAssistant"
 import { StorageManager } from "../Storage/StorageManager"
 import { ToolRouter } from "../Tools/ToolRouter"
+import { OpenClawBridge } from "../Bridge/OpenClawBridge"
+import { GlassQuery, OpenClawConnectionState } from "../Bridge/OpenClawTypes"
 import { AgentLanguageInterface } from "./AgentLanguageInterface"
 import { AgentMemorySystem } from "./AgentMemorySystem"
 import { AgentToolExecutor } from "./AgentToolExecutor"
@@ -83,6 +85,24 @@ export class AgentOrchestrator extends BaseScriptComponent {
   @input showToolUsage: boolean = true
   @input showQueryRouting: boolean = true
   @ui.group_end
+  @ui.group_start("OpenClaw Bridge Configuration")
+  @input
+  @hint("Enable routing queries through OpenClaw gateway instead of direct AI providers")
+  enableOpenClaw: boolean = false
+  @input
+  @hint("OpenClaw server WebSocket URL (e.g., ws://172.16.98.166:18789)")
+  openClawServerUrl: string = "ws://172.16.98.166:18789"
+  @input
+  @hint("Gateway auth token from openclaw.json gateway.auth.token (dev mode, no device signing)")
+  openClawAuthToken: string = ""
+  @input
+  @hint("RemoteServiceModule reference for WebSocket creation")
+  remoteServiceModule: RemoteServiceModule = null
+  @input
+  @hint("AudioComponent for native TTS playback (required when enableOpenClaw is true)")
+  @allowUndefined
+  ttsAudioComponent: AudioComponent
+  @ui.group_end
 
   // ================================
   // Core System Components
@@ -100,6 +120,10 @@ export class AgentOrchestrator extends BaseScriptComponent {
   private isProcessingQuery: boolean = false
   private currentSessionId: string = ""
   private initialized: boolean = false
+  private connectionMode: "direct" | "openclaw" = "direct"
+  private openClawBridge: OpenClawBridge = null
+  private ttsModule: TextToSpeechModule = null
+  private isSpeakingNative: boolean = false
 
   // FIX: Track current conversation for voice completion events
   private currentQuery: string = ""
@@ -185,7 +209,8 @@ export class AgentOrchestrator extends BaseScriptComponent {
       this.languageInterface = new AgentLanguageInterface(
         this.openAIAssistant,
         this.geminiAssistant,
-        this.defaultProvider as "openai" | "gemini"
+        this.defaultProvider as "openai" | "gemini",
+        this.enableOpenClaw // deferInit: skip AI session init in OpenClaw mode to keep mic free for ASR
       )
 
       // No need to set default provider again as it's passed in constructor
@@ -232,6 +257,23 @@ export class AgentOrchestrator extends BaseScriptComponent {
         }
       }
     })
+
+    // Initialize OpenClaw bridge if enabled
+    if (this.enableOpenClaw) {
+      this.openClawBridge = OpenClawBridge.getInstance()
+      this.openClawBridge.setRemoteServiceModule(this.remoteServiceModule)
+      this.openClawBridge.configure({
+        serverUrl: this.openClawServerUrl,
+        authToken: this.openClawAuthToken
+      })
+
+      // Auto-connect to OpenClaw
+      this.openClawBridge.connect().then(() => {
+        print("AgentOrchestrator: OpenClaw bridge connection initiated")
+      }).catch((e) => {
+        print("AgentOrchestrator: OpenClaw bridge connection failed: " + e)
+      })
+    }
 
     if (this.enableDebugLogging) {
       print("AgentOrchestrator: Core components initialized")
@@ -411,6 +453,36 @@ export class AgentOrchestrator extends BaseScriptComponent {
       })
     }
 
+    // Setup OpenClaw bridge events
+    if (this.openClawBridge) {
+      this.openClawBridge.onConnectionStateChanged.add((state: OpenClawConnectionState) => {
+        if (state.status === "connected") {
+          this.connectionMode = "openclaw"
+          print("AgentOrchestrator: Switched to OpenClaw mode")
+
+          // Auto-test: send a test query when connected in test mode
+          // Delay to allow session key fetch to complete
+          if (this.enableTestMode) {
+            setTimeout(() => {
+              print("AgentOrchestrator: [TEST] Sending test query via OpenClaw...")
+              this.processUserQuery("Hello, what is 2+2?").then((response) => {
+                print("AgentOrchestrator: [TEST] OpenClaw response: " + response.substring(0, 200))
+              }).catch((e) => {
+                print("AgentOrchestrator: [TEST] OpenClaw test failed: " + e)
+              })
+            }, 3000)
+          }
+        } else if (state.status === "disconnected") {
+          this.connectionMode = "direct"
+          print("AgentOrchestrator: Switched to direct AI mode (fallback)")
+        }
+      })
+
+      this.openClawBridge.onError.add((error) => {
+        this.handleError("[OpenClaw] " + error.message)
+      })
+    }
+
     // Setup tool executor events
     if (this.toolExecutor) {
       this.toolExecutor.onToolExecuted.add((data) => {
@@ -534,31 +606,61 @@ export class AgentOrchestrator extends BaseScriptComponent {
         }
       }
 
-      // Execute the main intelligent conversation tool (which routes to specific tools)
-      const result = await this.toolExecutor.executeTool("intelligent_conversation", toolArgs)
-
-      // Update tool display with routing information
-      this.updateToolDisplay(query, result)
-
       let response = "I'm having trouble processing that request."
 
-      if (result.success && result.result) {
-        if (typeof result.result === "string") {
-          response = result.result
-        } else if (result.result.message) {
-          // FIX: Handle ChatResponse structure from GeneralConversationTool
-          response = result.result.message
-        } else if (result.result.response) {
-          response = result.result.response
-        } else if (result.result.result) {
-          response = result.result.result
-        } else {
-          // FIX: Better error handling - show what we actually got
-          print(`AgentOrchestrator: Unexpected result structure: ${JSON.stringify(result.result)}`)
-          response = "Unexpected response format from tool"
+      // Route through OpenClaw bridge if connected, otherwise use direct AI
+      if (this.connectionMode === "openclaw" && this.openClawBridge?.isConnected()) {
+        // OpenClaw mode: route query through the gateway bridge
+        if (this.enableDebugLogging) {
+          print("AgentOrchestrator: Routing through OpenClaw bridge")
         }
-      } else {
-        response = result.error || "Tool execution failed"
+
+        try {
+          const glassQuery: GlassQuery = {
+            text: query,
+            imageData: context?.cameraFrame,
+            displayMode: "chat",
+            maxResponseLength: 300
+          }
+
+          response = await this.openClawBridge.sendQuery(glassQuery)
+
+          // Update tool display for OpenClaw
+          if (this.toolDisplayText) {
+            this.toolDisplayText.text = "OpenClaw Agent"
+          }
+        } catch (e) {
+          print("AgentOrchestrator: OpenClaw query failed, falling back to direct mode: " + e)
+          this.connectionMode = "direct"
+          // Fall through to direct mode below
+        }
+      }
+
+      if (this.connectionMode === "direct" || response === "I'm having trouble processing that request.") {
+        // Direct mode: use local tool routing (existing behavior)
+        const result = await this.toolExecutor.executeTool("intelligent_conversation", toolArgs)
+
+        // Update tool display with routing information
+        this.updateToolDisplay(query, result)
+
+        if (result.success && result.result) {
+          if (typeof result.result === "string") {
+            response = result.result
+          } else if (result.result.message) {
+            // FIX: Handle ChatResponse structure from GeneralConversationTool
+            response = result.result.message
+          } else if (result.result.response) {
+            response = result.result.response
+          } else if (result.result.result) {
+            response = result.result.result
+          } else {
+            // FIX: Better error handling - show what we actually got
+            print(`AgentOrchestrator: Unexpected result structure: ${JSON.stringify(result.result)}`)
+            response = "Unexpected response format from tool"
+          }
+        } else {
+          response = result.error || "Tool execution failed"
+        }
       }
 
       // FIX: Handle voice mode responses (Hybrid Architecture)
@@ -572,11 +674,15 @@ export class AgentOrchestrator extends BaseScriptComponent {
           response = "" // Empty response for now, prevents duplicate display
         }
       } else if (this.enableVoiceOutput && response && response.length > 0) {
-        // Text-First Mode (e.g. Summary Tool):
-        // We have the text, but need to speak it (Re-injection)
-        // This ensures the user hears the response even if the tool ran in text mode
+        // Text-First Mode: We have the text, need to speak it aloud
         print(`AgentOrchestrator: Text response detected with voice enabled - requesting speech`)
-        this.languageInterface.speak(response)
+        if (this.connectionMode === "openclaw") {
+          // OpenClaw mode: use native Spectacles TTS (no mic conflict, no duplicate cards)
+          this.speakNative(response)
+        } else {
+          // Direct mode: use AI provider TTS (existing behavior)
+          this.languageInterface.speak(response)
+        }
       }
 
       // FIX: Store current response for voice completion tracking
@@ -834,6 +940,41 @@ export class AgentOrchestrator extends BaseScriptComponent {
     return this.initialized && this.enableSystem && !this.isProcessingQuery
   }
 
+  /**
+   * Abort the current in-progress query (OpenClaw mode).
+   * Sends chat.abort and interrupts any ongoing audio output.
+   */
+  public abortCurrentQuery(): void {
+    if (this.connectionMode === "openclaw" && this.openClawBridge?.isConnected()) {
+      this.openClawBridge.abortQuery()
+      print("AgentOrchestrator: Abort sent to OpenClaw")
+    }
+
+    // Interrupt native TTS playback
+    this.stopNativeTTS()
+
+    // Interrupt AI provider audio output
+    if (this.languageInterface) {
+      this.languageInterface.interruptAudioOutput()
+    }
+
+    this.isProcessingQuery = false
+  }
+
+  /**
+   * Get current connection mode (openclaw or direct AI provider).
+   */
+  public getConnectionMode(): "direct" | "openclaw" {
+    return this.connectionMode
+  }
+
+  /**
+   * Get the OpenClaw bridge instance (if enabled).
+   */
+  public getOpenClawBridge(): OpenClawBridge | null {
+    return this.openClawBridge
+  }
+
   public resetSystem(): void {
     // Use StorageManager for centralized reset
     if (this.storageManager) {
@@ -853,6 +994,67 @@ export class AgentOrchestrator extends BaseScriptComponent {
 
     if (this.enableDebugLogging) {
       print("AgentOrchestrator: System reset completed")
+    }
+  }
+
+  // ================================
+  // Native TTS (Spectacles TextToSpeechModule)
+  // ================================
+
+  /**
+   * Speak text using Spectacles native TextToSpeechModule.
+   * Used in OpenClaw mode to avoid claiming the mic via AI provider sessions.
+   */
+  private speakNative(text: string): void {
+    if (!text) return
+
+    // Lazy-load TextToSpeechModule on first use (can't require at field-init time — component not yet awake)
+    if (!this.ttsModule) {
+      try {
+        this.ttsModule = require("LensStudio:TextToSpeechModule")
+        print("AgentOrchestrator: [NativeTTS] TextToSpeechModule loaded")
+      } catch (e) {
+        print(`AgentOrchestrator: [NativeTTS] Failed to load TextToSpeechModule: ${e}`)
+        return
+      }
+    }
+
+    print(`AgentOrchestrator: [NativeTTS] Speaking: "${text.substring(0, 50)}..."`)
+
+    const options = TextToSpeech.Options.create()
+    this.isSpeakingNative = true
+
+    this.ttsModule.synthesize(
+      text,
+      options,
+      (audioTrackAsset: AudioTrackAsset, wordInfo: TextToSpeech.WordInfo[], phonemeInfo: TextToSpeech.PhonemeInfo[], voiceStyle: any) => {
+        if (this.ttsAudioComponent) {
+          this.ttsAudioComponent.audioTrack = audioTrackAsset
+          this.ttsAudioComponent.play(1)
+          this.ttsAudioComponent.setOnFinish(() => {
+            this.isSpeakingNative = false
+            print("AgentOrchestrator: [NativeTTS] Playback finished")
+          })
+        } else {
+          print("AgentOrchestrator: [NativeTTS] No AudioComponent assigned — cannot play audio")
+          this.isSpeakingNative = false
+        }
+      },
+      (error: number, description: string) => {
+        print(`AgentOrchestrator: [NativeTTS] Error ${error}: ${description}`)
+        this.isSpeakingNative = false
+      }
+    )
+  }
+
+  /**
+   * Stop native TTS playback immediately.
+   */
+  private stopNativeTTS(): void {
+    if (this.ttsAudioComponent && this.isSpeakingNative) {
+      this.ttsAudioComponent.stop(false)
+      this.isSpeakingNative = false
+      print("AgentOrchestrator: [NativeTTS] Playback interrupted")
     }
   }
 

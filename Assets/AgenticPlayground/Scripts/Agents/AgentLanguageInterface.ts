@@ -24,7 +24,7 @@ export class AgentLanguageInterface {
   public onError: Event<{ error: string; provider: string }> = new Event()
   public onConnectionStatus: Event<{ connected: boolean; provider: string }> = new Event()
 
-  constructor(openAIAssistant?: OpenAIAssistant, geminiAssistant?: GeminiAssistant, defaultProvider: "openai" | "gemini" = "openai") {
+  constructor(openAIAssistant?: OpenAIAssistant, geminiAssistant?: GeminiAssistant, defaultProvider: "openai" | "gemini" = "openai", deferInit: boolean = false) {
     this.openAIAssistant = openAIAssistant || null
     this.geminiAssistant = geminiAssistant || null
 
@@ -33,10 +33,16 @@ export class AgentLanguageInterface {
 
     this.setupEventHandlers()
 
-    // FIX: Actually initialize the AI sessions
-    this.initializeSession()
+    // Skip AI session init when deferInit is true (OpenClaw mode).
+    // This prevents Gemini/OpenAI from claiming the microphone via setSampleRate(),
+    // which would block AsrModule from capturing voice input.
+    if (!deferInit) {
+      this.initializeSession()
+    } else {
+      print(`AgentLanguageInterface: Session init deferred (OpenClaw mode) — mic stays free for ASR`)
+    }
 
-    print(`AgentLanguageInterface: Language interface initialized with default provider: ${this.currentProvider}`)
+    print(`AgentLanguageInterface: Language interface initialized with default provider: ${this.currentProvider}, deferInit: ${deferInit}`)
   }
 
   // ================================

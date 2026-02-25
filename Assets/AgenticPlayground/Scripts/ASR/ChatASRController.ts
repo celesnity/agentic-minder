@@ -46,6 +46,10 @@ export class ChatASRController extends BaseScriptComponent {
   @hint("Enable continuous listening mode")
   private continuousListening: boolean = false
 
+  @input
+  @hint("Auto-start ASR listening after init (for preview testing — bypasses PinchButton)")
+  private autoStartListening: boolean = false
+
   private asrModule: AsrModule = require("LensStudio:AsrModule")
   private isRecording: boolean = false
   private isProcessingQuery: boolean = false
@@ -93,6 +97,15 @@ export class ChatASRController extends BaseScriptComponent {
       return
     }
 
+    // ASR diagnostic check
+    try {
+      const testOptions = AsrModule.AsrTranscriptionOptions.create()
+      print(`ChatASRController: [Diag] AsrModule available, options created OK`)
+      print(`ChatASRController: [Diag] AsrModule modes - HighAccuracy: ${AsrModule.AsrMode.HighAccuracy}`)
+    } catch (e) {
+      print(`ChatASRController: [Diag] ASR FAILED to create options: ${e}`)
+    }
+
     this.setupUI()
 
     if (this.continuousListening) {
@@ -101,6 +114,32 @@ export class ChatASRController extends BaseScriptComponent {
 
     if (this.enableDebugLogging) {
       print("ChatASRController: Initialized and connected to AgentOrchestrator + ChatStorage")
+    }
+
+    // Auto-start: directly test ASR, bypassing button/session/orchestrator
+    if (this.autoStartListening) {
+      print("ChatASRController: [AutoStart] Will test ASR directly in 3 seconds...")
+      setTimeout(() => {
+        print("ChatASRController: [AutoStart] Starting raw ASR test — SPEAK NOW into microphone!")
+        try {
+          const testOpts = AsrModule.AsrTranscriptionOptions.create()
+          testOpts.mode = AsrModule.AsrMode.HighAccuracy
+          testOpts.silenceUntilTerminationMs = 5000
+
+          testOpts.onTranscriptionUpdateEvent.add((asrOutput: any) => {
+            print(`ChatASRController: [AutoStart] ASR heard: "${asrOutput.text}" (final: ${asrOutput.isFinal})`)
+          })
+
+          testOpts.onTranscriptionErrorEvent.add((errorCode: any) => {
+            print(`ChatASRController: [AutoStart] ASR error: ${errorCode}`)
+          })
+
+          this.asrModule.startTranscribing(testOpts)
+          print("ChatASRController: [AutoStart] startTranscribing() called OK — listening for 5s")
+        } catch (e) {
+          print(`ChatASRController: [AutoStart] ASR test FAILED: ${e}`)
+        }
+      }, 3000)
     }
   }
 
@@ -138,11 +177,20 @@ export class ChatASRController extends BaseScriptComponent {
    * Handle mic button press - start session and begin voice query
    */
   private async handleMicButtonPress(): Promise<void> {
+    print("ChatASRController: [Diag] Mic button pressed!")
+
     if (this.isProcessingQuery) {
-      if (this.enableDebugLogging) {
-        print("ChatASRController: Already processing a query")
-      }
+      print("ChatASRController: Already processing a query, ignoring mic press")
       return
+    }
+
+    // Interrupt any playing TTS audio before starting new ASR capture
+    try {
+      if (this.agentOrchestrator) {
+        this.agentOrchestrator.abortCurrentQuery()
+      }
+    } catch (e) {
+      print(`ChatASRController: [Diag] abortCurrentQuery error (non-fatal): ${e}`)
     }
 
     if (!this.sessionActive) {
@@ -156,9 +204,7 @@ export class ChatASRController extends BaseScriptComponent {
         print(`ChatASRController: Voice interaction completed: "${response.substring(0, 50)}..."`)
       }
     } catch (error) {
-      if (this.enableDebugLogging) {
-        print(`ChatASRController: Voice interaction failed: ${error}`)
-      }
+      print(`ChatASRController: Voice interaction failed: ${error}`)
     }
   }
 
@@ -252,6 +298,7 @@ export class ChatASRController extends BaseScriptComponent {
 
       if (this.enableDebugLogging) {
         print("ChatASRController: Started listening for voice input")
+        print(`ChatASRController: [Diag] ASR startTranscribing() called, mode=HighAccuracy, silence=2000ms`)
       }
     })
   }

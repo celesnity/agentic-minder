@@ -176,6 +176,43 @@ export class ChatExtensions {
   }
 
   /**
+   * Update the text content of an existing bot card in-place (no re-instantiation).
+   * Used for progressive streaming display.
+   */
+  public static updateBotCardText(agenticChat: ChatComponent, cardIndex: number, newText: string): boolean {
+    if (!agenticChat || cardIndex < 0) return false
+
+    try {
+      const chatAny = agenticChat as any
+      if (!chatAny.cardData || cardIndex >= chatAny.cardData.length) return false
+
+      const card = chatAny.cardData[cardIndex]
+      if (!card || !card.sceneObject) return false
+
+      // Update the stored text content
+      card.textContent = newText
+
+      // Find the Text component on the card's scene object hierarchy
+      // ButtonSlideCardBot uses a child Text component for display
+      const textComponents = card.sceneObject.getComponentsRecursive("Component.Text") as Text[]
+      if (textComponents && textComponents.length > 0) {
+        textComponents[0].text = newText
+        return true
+      }
+
+      // Fallback: try setupCardContent to re-apply text without re-instantiating
+      if (typeof chatAny.setupCardContent === "function") {
+        chatAny.setupCardContent(card)
+        return true
+      }
+    } catch (error) {
+      print(`ChatExtensions: Error updating bot card text: ${error}`)
+    }
+
+    return false
+  }
+
+  /**
    * Get the total number of cards in the AgenticChat component
    */
   public static getCardCount(agenticChat: ChatComponent): number {

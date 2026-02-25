@@ -66,18 +66,9 @@ export class GeminiAssistant extends BaseScriptComponent {
 
   onAwake() {
     print("GeminiAssistant: Assistant awakening")
-    // Initialize Gemini Live session on start to ensure it's available
-    this.createEvent("OnStartEvent").bind(() => {
-      if (this.websocketRequirementsObj && this.dynamicAudioOutput && this.microphoneRecorder) {
-        print("GeminiAssistant: Initializing Live session with required components")
-        this.createGeminiLiveSession()
-      } else {
-        print("GeminiAssistant: Missing required components for Live session")
-        print(`  - websocketRequirementsObj: ${this.websocketRequirementsObj ? "" : ""}`)
-        print(`  - dynamicAudioOutput: ${this.dynamicAudioOutput ? "" : ""}`)
-        print(`  - microphoneRecorder: ${this.microphoneRecorder ? "" : ""}`)
-      }
-    })
+    // NOTE: Auto-init removed. Session is created on-demand by AgentLanguageInterface.initializeCurrentProvider()
+    // which calls createGeminiLiveSession() when the Gemini provider is actually needed.
+    // This prevents the mic from being claimed at startup (blocking AsrModule for voice input).
   }
 
   createGeminiLiveSession() {

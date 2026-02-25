@@ -15,7 +15,7 @@ metaInfo:
     []
   lensName: Agentic Playground
   lensDescriptors:
-    []
+    - EXPERIMENTAL_API
   lensApplicability:
     - Front
     - Back

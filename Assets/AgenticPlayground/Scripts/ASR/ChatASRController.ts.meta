@@ -28,6 +28,7 @@
   ScriptInputsHidden:
     activityIndicator: false
     agentOrchestrator: false
+    autoStartListening: false
     chatStorage: false
     continuousListening: false
     enableDebugLogging: false
@@ -49,6 +50,7 @@
       enableDebugLogging: true
       sessionTimeout: !<float> 300.000000
       continuousListening: false
+      autoStartListening: false
   ScriptTypes:
     -
       {}
@@ -60,3 +62,4 @@
     - '// @input bool enableDebugLogging = true {"hint":"Enable debug logging"}'
     - '// @input float sessionTimeout = 300 {"hint":"Auto-timeout for chat sessions (seconds)"}'
     - '// @input bool continuousListening {"hint":"Enable continuous listening mode"}'
+    - '// @input bool autoStartListening {"hint":"Auto-start ASR listening after init (for preview testing — bypasses PinchButton)"}'

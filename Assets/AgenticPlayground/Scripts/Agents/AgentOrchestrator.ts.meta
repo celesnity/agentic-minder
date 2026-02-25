@@ -30,18 +30,23 @@
     conversationContextMessages: false
     defaultProvider: false
     enableDebugLogging: false
+    enableOpenClaw: false
     enableSystem: false
     enableTestMode: false
     enableVoiceOutput: false
     geminiAssistant: false
     maxRetries: false
     openAIAssistant: false
+    openClawAuthToken: false
+    openClawServerUrl: false
+    remoteServiceModule: false
     showQueryRouting: false
     showToolUsage: false
     storageManager: false
     summaryComponent: false
     toolDisplayText: false
     toolTimeout: false
+    ttsAudioComponent: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -67,6 +72,11 @@
       enableDebugLogging: true
       showToolUsage: true
       showQueryRouting: true
+      enableOpenClaw: false
+      openClawServerUrl: "ws://192.168.1.100:18789"
+      openClawAuthToken: ""
+      remoteServiceModule: !<reference.RemoteServiceModule> 00000000-0000-0000-0000-000000000000
+      ttsAudioComponent: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
@@ -94,4 +104,11 @@
     - // @input bool enableDebugLogging = true
     - // @input bool showToolUsage = true
     - // @input bool showQueryRouting = true
+    - '// @ui {"widget":"group_end"}'
+    - '// @ui {"widget":"group_start", "label":"OpenClaw Bridge Configuration"}'
+    - '// @input bool enableOpenClaw {"hint":"Enable routing queries through OpenClaw gateway instead of direct AI providers"}'
+    - '// @input string openClawServerUrl = "ws://172.16.98.166:18789" {"hint":"OpenClaw server WebSocket URL (e.g., ws://172.16.98.166:18789)"}'
+    - '// @input string openClawAuthToken {"hint":"Gateway auth token from openclaw.json gateway.auth.token (dev mode, no device signing)"}'
+    - '// @input Asset.RemoteServiceModule remoteServiceModule {"hint":"RemoteServiceModule reference for WebSocket creation"}'
+    - '// @input Component.AudioComponent ttsAudioComponent {"hint":"AudioComponent for native TTS playback (required when enableOpenClaw is true)"}'
     - '// @ui {"widget":"group_end"}'

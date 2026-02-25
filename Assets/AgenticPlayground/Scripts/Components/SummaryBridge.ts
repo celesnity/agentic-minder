@@ -266,11 +266,12 @@ export class SummaryBridge extends BaseScriptComponent {
 
     if (timeSinceUpdate >= this.updateInterval) {
       try {
-        // Add instance check
         const storageInfo = this.summaryStorage as any
-        print(
-          `SummaryBridge: 🔍 Storage instance check - instanceId: ${storageInfo.instanceId}, object: ${this.summaryStorage}`
-        )
+        if (this.enableDebugLogging) {
+          print(
+            `SummaryBridge: Storage instance check - instanceId: ${storageInfo.instanceId}`
+          )
+        }
 
         const currentText = this.summaryStorage.getCurrentText()
         const currentLength = currentText.length

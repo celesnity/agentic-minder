@@ -1,6 +1,8 @@
 import Event from "SpectaclesInteractionKit.lspkg/Utils/Event"
 import {AgentOrchestrator} from "../Agents/AgentOrchestrator"
 import {ChatMessage} from "../Agents/AgentTypes"
+import {OpenClawBridge} from "../Bridge/OpenClawBridge"
+import {OpenClawStreamingDelta} from "../Bridge/OpenClawTypes"
 import {ChatStorage} from "../Storage/ChatStorage"
 import {ChatExtensions} from "../Utils/ChatExtensions"
 import {CHARACTER_LIMITS, TextLimiter} from "../Utils/TextLimiter"
@@ -35,6 +37,11 @@ export class ChatBridge extends BaseScriptComponent {
   private lastMessageCount: number = 0
   private connectionRetryCount: number = 0
   private readonly MAX_CONNECTION_RETRIES: number = 10
+
+  // Streaming state for progressive UI display
+  private streamingCardIndex: number = -1
+  private isStreamingResponse: boolean = false
+  private streamingDidDisplay: boolean = false
 
   public onMessageDisplayed: Event<ChatMessage> = new Event<ChatMessage>()
   public onError: Event<string> = new Event<string>()
@@ -135,6 +142,9 @@ export class ChatBridge extends BaseScriptComponent {
       }
     }
 
+    // Connect to OpenClaw streaming delta for progressive UI
+    this.subscribeToStreamingDelta()
+
     // Connect to ChatStorage events
     if (this.chatStorage) {
       // FIX: Disable ChatStorage.onMessageAdded to prevent duplicate messages
@@ -149,6 +159,32 @@ export class ChatBridge extends BaseScriptComponent {
 
     if (this.enableDebugLogging) {
       print("ChatBridge: Bridge connections established")
+    }
+  }
+
+  private streamingDeltaSubscribed: boolean = false
+
+  /**
+   * Subscribe to OpenClaw streaming delta events.
+   * Called during init and retried on each update tick until successful,
+   * because the bridge may not be ready yet when ChatBridge initializes.
+   */
+  private subscribeToStreamingDelta(): void {
+    if (this.streamingDeltaSubscribed) return
+    if (!this.agentOrchestrator) return
+
+    const bridge = this.agentOrchestrator.getOpenClawBridge()
+    if (bridge) {
+      bridge.onStreamingDelta.add((data: OpenClawStreamingDelta) => {
+        this.handleStreamingDelta(data)
+      })
+      this.streamingDeltaSubscribed = true
+
+      if (this.enableDebugLogging) {
+        print("ChatBridge: Connected to OpenClawBridge.onStreamingDelta")
+      }
+    } else if (this.enableDebugLogging) {
+      print("ChatBridge: OpenClawBridge not ready yet, will retry")
     }
   }
 
@@ -228,14 +264,26 @@ export class ChatBridge extends BaseScriptComponent {
     // FIX: Check if voice output is enabled
     const isVoiceEnabled = this.agentOrchestrator && this.agentOrchestrator.enableVoiceOutput
 
+    // Check if OpenClaw streaming already created the bot card
+    const isOpenClawMode = this.agentOrchestrator && this.agentOrchestrator.getConnectionMode() === "openclaw"
+    // Only skip display if streaming actually ran and displayed the card
+    const streamingAlreadyDisplayed = isOpenClawMode && this.streamingDidDisplay
+
     if (isVoiceEnabled && response === "") {
       // Voice mode with empty response - wait for transcription
       if (this.enableDebugLogging) {
         print(`ChatBridge: Voice mode detected - waiting for transcription event`)
       }
       // Don't display anything - wait for voice completion event
+    } else if (streamingAlreadyDisplayed && response && response.length > 0) {
+      // OpenClaw mode with streaming complete — bot card was already created by handleStreamingDelta
+      if (this.enableDebugLogging) {
+        print(`ChatBridge: Skipping bot card — already displayed via streaming`)
+      }
+      // Reset the flag for next query
+      this.streamingDidDisplay = false
     } else if (response && response.length > 0) {
-      // We have a text response - display it
+      // We have a text response - display it (direct mode or no streaming)
       const botMessage: ChatMessage = {
         id: `msg_${timestamp + 1}_bot`,
         type: "bot",
@@ -254,6 +302,46 @@ export class ChatBridge extends BaseScriptComponent {
 
     if (this.enableDebugLogging) {
       print(`ChatBridge: New conversation handled: "${query.substring(0, 50)}..." (voice: ${isVoiceEnabled})`)
+    }
+  }
+
+  /**
+   * Handle streaming delta from OpenClaw for progressive UI updates
+   */
+  private handleStreamingDelta(data: OpenClawStreamingDelta): void {
+    if (!this.chatLayout) return
+
+    if (!this.isStreamingResponse && data.accumulated.length > 0) {
+      // First delta — create a placeholder bot card
+      const added = ChatExtensions.addBotCard(this.chatLayout, data.accumulated)
+      if (added) {
+        this.streamingCardIndex = ChatExtensions.getCardCount(this.chatLayout) - 1
+        this.isStreamingResponse = true
+
+        if (this.enableDebugLogging) {
+          print("ChatBridge: Streaming started, card index: " + this.streamingCardIndex)
+        }
+      }
+    } else if (this.isStreamingResponse && this.streamingCardIndex >= 0) {
+      // Subsequent deltas — update the card text in-place
+      const limited = TextLimiter.limitText(data.accumulated, CHARACTER_LIMITS.BOT_CARD_TEXT)
+      ChatExtensions.updateBotCardText(this.chatLayout, this.streamingCardIndex, limited)
+    }
+
+    if (data.done) {
+      // Finalize: update with final text and reset streaming state
+      if (this.isStreamingResponse && this.streamingCardIndex >= 0) {
+        const finalText = TextLimiter.limitText(data.accumulated, CHARACTER_LIMITS.BOT_CARD_TEXT)
+        ChatExtensions.updateBotCardText(this.chatLayout, this.streamingCardIndex, finalText)
+        this.streamingDidDisplay = true
+
+        if (this.enableDebugLogging) {
+          print("ChatBridge: Streaming complete, final length: " + data.accumulated.length)
+        }
+      }
+
+      this.isStreamingResponse = false
+      this.streamingCardIndex = -1
     }
   }
 
@@ -360,9 +448,10 @@ export class ChatBridge extends BaseScriptComponent {
       this.retryConnectionSetup()
     }
 
-    // FIX: Removed ChatStorage polling since messages now flow through
-    // AgentOrchestrator.onQueryProcessed → handleNewConversation → displayMessage
-    // This prevents any potential duplication from periodic checks
+    // Retry streaming delta subscription until the bridge is ready
+    if (!this.streamingDeltaSubscribed) {
+      this.subscribeToStreamingDelta()
+    }
   }
 
   /**
