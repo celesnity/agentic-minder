@@ -91,7 +91,7 @@ export class AgentOrchestrator extends BaseScriptComponent {
   enableOpenClaw: boolean = false
   @input
   @hint("OpenClaw server WebSocket URL (e.g., ws://172.16.98.166:18789)")
-  openClawServerUrl: string = "ws://172.16.98.166:18789"
+  openClawServerUrl: string = "ws://192.168.1.66:18789"
   @input
   @hint("Gateway auth token from openclaw.json gateway.auth.token (dev mode, no device signing)")
   openClawAuthToken: string = ""
@@ -117,7 +117,8 @@ export class AgentOrchestrator extends BaseScriptComponent {
   // ================================
 
   private systemState: SystemState = null
-  private isProcessingQuery: boolean = false
+  public isProcessingQuery: boolean = false
+  private queryGeneration: number = 0  // Monotonic counter to detect stale finally blocks
   private currentSessionId: string = ""
   private initialized: boolean = false
   private connectionMode: "direct" | "openclaw" = "direct"
@@ -260,6 +261,13 @@ export class AgentOrchestrator extends BaseScriptComponent {
 
     // Initialize OpenClaw bridge if enabled
     if (this.enableOpenClaw) {
+      print("AgentOrchestrator: [Pipeline] OpenClaw mode enabled — initializing bridge")
+
+      // Warn if TTS AudioComponent is not wired
+      if (!this.ttsAudioComponent) {
+        print("AgentOrchestrator: [Pipeline] WARNING: ttsAudioComponent not assigned in Inspector — TTS playback will not work!")
+      }
+
       this.openClawBridge = OpenClawBridge.getInstance()
       this.openClawBridge.setRemoteServiceModule(this.remoteServiceModule)
       this.openClawBridge.configure({
@@ -269,9 +277,9 @@ export class AgentOrchestrator extends BaseScriptComponent {
 
       // Auto-connect to OpenClaw
       this.openClawBridge.connect().then(() => {
-        print("AgentOrchestrator: OpenClaw bridge connection initiated")
+        print("AgentOrchestrator: [Pipeline] OpenClaw bridge connection initiated")
       }).catch((e) => {
-        print("AgentOrchestrator: OpenClaw bridge connection failed: " + e)
+        print("AgentOrchestrator: [Pipeline] OpenClaw bridge connection FAILED: " + e)
       })
     }
 
@@ -562,6 +570,7 @@ export class AgentOrchestrator extends BaseScriptComponent {
     }
 
     this.isProcessingQuery = true
+    const myGeneration = ++this.queryGeneration
     this.onQueryReceived.invoke(query)
 
     // FIX: Store current query for voice completion tracking
@@ -609,11 +618,11 @@ export class AgentOrchestrator extends BaseScriptComponent {
       let response = "I'm having trouble processing that request."
 
       // Route through OpenClaw bridge if connected, otherwise use direct AI
+      print(`AgentOrchestrator: [Pipeline] Connection mode: ${this.connectionMode}, bridge connected: ${this.openClawBridge?.isConnected() ?? false}`)
+
       if (this.connectionMode === "openclaw" && this.openClawBridge?.isConnected()) {
         // OpenClaw mode: route query through the gateway bridge
-        if (this.enableDebugLogging) {
-          print("AgentOrchestrator: Routing through OpenClaw bridge")
-        }
+        print(`AgentOrchestrator: [Pipeline] Sending to OpenClaw: "${query.substring(0, 80)}"`)
 
         try {
           const glassQuery: GlassQuery = {
@@ -624,6 +633,8 @@ export class AgentOrchestrator extends BaseScriptComponent {
           }
 
           response = await this.openClawBridge.sendQuery(glassQuery)
+          print(`AgentOrchestrator: [Pipeline] OpenClaw response received (${response.length} chars): "${response.substring(0, 80)}"`)
+
 
           // Update tool display for OpenClaw
           if (this.toolDisplayText) {
@@ -675,12 +686,11 @@ export class AgentOrchestrator extends BaseScriptComponent {
         }
       } else if (this.enableVoiceOutput && response && response.length > 0) {
         // Text-First Mode: We have the text, need to speak it aloud
-        print(`AgentOrchestrator: Text response detected with voice enabled - requesting speech`)
         if (this.connectionMode === "openclaw") {
-          // OpenClaw mode: use native Spectacles TTS (no mic conflict, no duplicate cards)
+          print(`AgentOrchestrator: [Pipeline] Sending response to native TTS (${response.length} chars)`)
           this.speakNative(response)
         } else {
-          // Direct mode: use AI provider TTS (existing behavior)
+          print(`AgentOrchestrator: [Pipeline] Sending response to AI provider TTS`)
           this.languageInterface.speak(response)
         }
       }
@@ -736,19 +746,25 @@ export class AgentOrchestrator extends BaseScriptComponent {
       this.handleError(errorMessage)
       return errorMessage
     } finally {
-      this.isProcessingQuery = false
-      // FIX: Delay clearing current conversation to allow voice completion event to fire
-      setTimeout(() => {
-        this.currentQuery = ""
-        this.currentResponse = ""
-        // Also clear accumulated transcription if it wasn't used
-        if (this.accumulatedTranscription.length > 0) {
-          print(
-            `AgentOrchestrator: Clearing unused transcription: "${this.accumulatedTranscription.substring(0, 50)}..."`
-          )
-          this.accumulatedTranscription = ""
-        }
-      }, 5000) // 5 second delay to ensure voice completion event can access these values
+      // Only reset if this query is still the current one (prevents stale finally from clobbering new query)
+      if (myGeneration === this.queryGeneration) {
+        this.isProcessingQuery = false
+        // FIX: Delay clearing current conversation to allow voice completion event to fire
+        setTimeout(() => {
+          if (myGeneration === this.queryGeneration) {
+            this.currentQuery = ""
+            this.currentResponse = ""
+            if (this.accumulatedTranscription.length > 0) {
+              print(
+                `AgentOrchestrator: Clearing unused transcription: "${this.accumulatedTranscription.substring(0, 50)}..."`
+              )
+              this.accumulatedTranscription = ""
+            }
+          }
+        }, 5000)
+      } else {
+        print("AgentOrchestrator: [AlwaysOn] Stale query finished — not resetting isProcessingQuery")
+      }
     }
   }
 
@@ -953,12 +969,40 @@ export class AgentOrchestrator extends BaseScriptComponent {
     // Interrupt native TTS playback
     this.stopNativeTTS()
 
-    // Interrupt AI provider audio output
-    if (this.languageInterface) {
+    // Interrupt AI provider audio output (only in direct mode — session was never initialized in OpenClaw mode)
+    if (this.connectionMode !== "openclaw" && this.languageInterface) {
       this.languageInterface.interruptAudioOutput()
     }
 
     this.isProcessingQuery = false
+  }
+
+  /**
+   * Non-blocking variant of processUserQuery for always-on voice mode.
+   * Force-aborts any in-flight query before starting the new one ("last utterance wins").
+   */
+  public async processUserQueryNonBlocking(query: string, context?: any): Promise<string> {
+    print(`AgentOrchestrator: [AlwaysOn] processUserQueryNonBlocking called, isProcessing: ${this.isProcessingQuery}`)
+
+    // Always force-reset state before new query
+    if (this.isProcessingQuery) {
+      print("AgentOrchestrator: [AlwaysOn] Aborting previous query for new input")
+      this.abortCurrentQuery()
+    }
+
+    // Ensure clean state — abortCurrentQuery sets isProcessingQuery=false,
+    // but double-check in case it wasn't processing
+    this.isProcessingQuery = false
+
+    return this.processUserQuery(query, context)
+  }
+
+  /**
+   * Check if native TTS is currently playing audio.
+   * Used by ChatASRController for barge-in detection.
+   */
+  public isSpeaking(): boolean {
+    return this.isSpeakingNative
   }
 
   /**
@@ -1008,43 +1052,153 @@ export class AgentOrchestrator extends BaseScriptComponent {
   private speakNative(text: string): void {
     if (!text) return
 
-    // Lazy-load TextToSpeechModule on first use (can't require at field-init time — component not yet awake)
+    // Lazy-load TextToSpeechModule on first use
     if (!this.ttsModule) {
       try {
         this.ttsModule = require("LensStudio:TextToSpeechModule")
-        print("AgentOrchestrator: [NativeTTS] TextToSpeechModule loaded")
+        print("AgentOrchestrator: [NativeTTS] TextToSpeechModule loaded OK")
       } catch (e) {
-        print(`AgentOrchestrator: [NativeTTS] Failed to load TextToSpeechModule: ${e}`)
+        print(`AgentOrchestrator: [NativeTTS] FAILED to load TextToSpeechModule: ${e}`)
         return
       }
     }
 
-    print(`AgentOrchestrator: [NativeTTS] Speaking: "${text.substring(0, 50)}..."`)
+    // Strip markdown formatting that TTS model can't handle
+    const cleanText = this.cleanTextForTTS(text)
 
-    const options = TextToSpeech.Options.create()
+    // Split into chunks under 380 chars (TTS model limit is 400, leave margin)
+    const chunks = this.splitTextForTTS(cleanText, 380)
+    print(`AgentOrchestrator: [NativeTTS] Speaking ${chunks.length} chunk(s), total ${cleanText.length} chars`)
+
     this.isSpeakingNative = true
+    this.speakChunks(chunks, 0)
+  }
 
-    this.ttsModule.synthesize(
-      text,
-      options,
-      (audioTrackAsset: AudioTrackAsset, wordInfo: TextToSpeech.WordInfo[], phonemeInfo: TextToSpeech.PhonemeInfo[], voiceStyle: any) => {
-        if (this.ttsAudioComponent) {
-          this.ttsAudioComponent.audioTrack = audioTrackAsset
-          this.ttsAudioComponent.play(1)
-          this.ttsAudioComponent.setOnFinish(() => {
-            this.isSpeakingNative = false
-            print("AgentOrchestrator: [NativeTTS] Playback finished")
-          })
-        } else {
-          print("AgentOrchestrator: [NativeTTS] No AudioComponent assigned — cannot play audio")
-          this.isSpeakingNative = false
-        }
-      },
-      (error: number, description: string) => {
-        print(`AgentOrchestrator: [NativeTTS] Error ${error}: ${description}`)
-        this.isSpeakingNative = false
+  /**
+   * Strip markdown and special formatting that the TTS model can't handle.
+   */
+  private cleanTextForTTS(text: string): string {
+    let clean = text
+    // Remove bold/italic markers: **text** → text, *text* → text, __text__ → text
+    clean = clean.replace(/\*\*([^*]+)\*\*/g, '$1')
+    clean = clean.replace(/\*([^*]+)\*/g, '$1')
+    clean = clean.replace(/__([^_]+)__/g, '$1')
+    clean = clean.replace(/_([^_]+)_/g, '$1')
+    // Remove markdown headers: ### text → text
+    clean = clean.replace(/^#{1,6}\s+/gm, '')
+    // Remove markdown links: [text](url) → text
+    clean = clean.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove inline code: `text` → text
+    clean = clean.replace(/`([^`]+)`/g, '$1')
+    // Remove bullet point markers: - text → text, * text → text
+    clean = clean.replace(/^[\-\*]\s+/gm, '')
+    // Remove numbered list markers: 1. text → text
+    clean = clean.replace(/^\d+\.\s+/gm, '')
+    // Replace em dash with comma for natural pause
+    clean = clean.replace(/\s*—\s*/g, ', ')
+    // Collapse multiple spaces/newlines
+    clean = clean.replace(/\n+/g, ' ')
+    clean = clean.replace(/\s{2,}/g, ' ')
+    return clean.trim()
+  }
+
+  /**
+   * Split text into chunks at sentence boundaries, staying under maxLen chars.
+   */
+  private splitTextForTTS(text: string, maxLen: number): string[] {
+    if (text.length <= maxLen) return [text]
+
+    const chunks: string[] = []
+    let remaining = text
+
+    while (remaining.length > 0) {
+      if (remaining.length <= maxLen) {
+        chunks.push(remaining)
+        break
       }
-    )
+
+      // Find last sentence boundary within maxLen
+      let splitAt = -1
+      const searchArea = remaining.substring(0, maxLen)
+
+      // Try sentence endings first: . ! ?
+      for (let i = searchArea.length - 1; i >= 0; i--) {
+        const ch = searchArea[i]
+        if (ch === '.' || ch === '!' || ch === '?') {
+          splitAt = i + 1
+          break
+        }
+      }
+
+      // Fallback: split at last comma or semicolon
+      if (splitAt <= 0) {
+        for (let i = searchArea.length - 1; i >= 0; i--) {
+          if (searchArea[i] === ',' || searchArea[i] === ';') {
+            splitAt = i + 1
+            break
+          }
+        }
+      }
+
+      // Last fallback: split at last space
+      if (splitAt <= 0) {
+        splitAt = searchArea.lastIndexOf(' ')
+        if (splitAt <= 0) splitAt = maxLen
+      }
+
+      chunks.push(remaining.substring(0, splitAt).trim())
+      remaining = remaining.substring(splitAt).trim()
+    }
+
+    return chunks
+  }
+
+  /**
+   * Play TTS chunks sequentially. Each chunk is synthesized and played,
+   * then the next chunk starts when playback finishes.
+   */
+  private speakChunks(chunks: string[], index: number): void {
+    if (index >= chunks.length || !this.isSpeakingNative) {
+      this.isSpeakingNative = false
+      if (index >= chunks.length) {
+        print("AgentOrchestrator: [NativeTTS] All chunks finished")
+      }
+      return
+    }
+
+    const chunk = chunks[index]
+    print(`AgentOrchestrator: [NativeTTS] Chunk ${index + 1}/${chunks.length}: "${chunk.substring(0, 50)}..."`)
+
+    try {
+      const options = TextToSpeech.Options.create()
+      this.ttsModule.synthesize(
+        chunk,
+        options,
+        (audioTrackAsset: AudioTrackAsset) => {
+          if (!this.isSpeakingNative) return // Interrupted
+
+          if (this.ttsAudioComponent) {
+            this.ttsAudioComponent.audioTrack = audioTrackAsset
+            this.ttsAudioComponent.play(1)
+            this.ttsAudioComponent.setOnFinish(() => {
+              // Play next chunk
+              this.speakChunks(chunks, index + 1)
+            })
+          } else {
+            print("AgentOrchestrator: [NativeTTS] No AudioComponent — skipping")
+            this.isSpeakingNative = false
+          }
+        },
+        (error: number, description: string) => {
+          print(`AgentOrchestrator: [NativeTTS] Chunk ${index + 1} error ${error}: ${description}`)
+          // Try next chunk despite error
+          this.speakChunks(chunks, index + 1)
+        }
+      )
+    } catch (e) {
+      print(`AgentOrchestrator: [NativeTTS] EXCEPTION: ${e}`)
+      this.isSpeakingNative = false
+    }
   }
 
   /**

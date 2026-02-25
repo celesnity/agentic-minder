@@ -27,6 +27,7 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     agentOrchestrator: false
+    chatASRController: false
     chatLayout: false
     chatStorage: false
     enableDebugLogging: false
@@ -45,6 +46,7 @@
       chatLayout: !<MappingBased.AssignableType_2> 00000000-0000-0000-0000-000000000000
       enableDebugLogging: true
       maxDisplayMessages: !<float> 50.000000
+      chatASRController: !<MappingBased.AssignableType_3> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
@@ -54,3 +56,4 @@
     - '// @input AssignableType_2 chatLayout {"hint":"Reference to ChatComponent for UI display"}'
     - // @input bool enableDebugLogging = true
     - // @input float maxDisplayMessages = 50
+    - '// @input AssignableType_3 chatASRController {"hint":"Reference to ChatASRController for partial transcription display (optional)"}'

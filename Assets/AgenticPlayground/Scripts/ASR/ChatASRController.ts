@@ -1,9 +1,9 @@
-import {LSTween} from "LSTween.lspkg/LSTween"
-import {PinchButton} from "SpectaclesInteractionKit.lspkg/Components/UI/PinchButton/PinchButton"
+import { LSTween } from "LSTween.lspkg/LSTween"
+import { PinchButton } from "SpectaclesInteractionKit.lspkg/Components/UI/PinchButton/PinchButton"
 import Event from "SpectaclesInteractionKit.lspkg/Utils/Event"
-import {setTimeout} from "SpectaclesInteractionKit.lspkg/Utils/FunctionTimingUtils"
-import {AgentOrchestrator} from "../Agents/AgentOrchestrator"
-import {ChatStorage} from "../Storage/ChatStorage"
+import { setTimeout } from "SpectaclesInteractionKit.lspkg/Utils/FunctionTimingUtils"
+import { AgentOrchestrator } from "../Agents/AgentOrchestrator"
+import { ChatStorage } from "../Storage/ChatStorage"
 
 /**
  * ChatASRController - ASR Controller for Chat functionality
@@ -50,6 +50,10 @@ export class ChatASRController extends BaseScriptComponent {
   @hint("Auto-start ASR listening after init (for preview testing — bypasses PinchButton)")
   private autoStartListening: boolean = false
 
+  @input
+  @hint("Always-on voice mode: ASR runs continuously, auto-sends on silence, supports barge-in")
+  enableAlwaysOn: boolean = false
+
   private asrModule: AsrModule = require("LensStudio:AsrModule")
   private isRecording: boolean = false
   private isProcessingQuery: boolean = false
@@ -66,12 +70,23 @@ export class ChatASRController extends BaseScriptComponent {
   // Track if we're intentionally starting the animation (to prevent error handlers from interfering)
   private isIntentionallyAnimating: boolean = false
 
+  // Always-on mode state
+  private alwaysOnActive: boolean = false
+  private asrSessionId: number = 0
+  private currentPartialText: string = ""
+  private lastASRStartTime: number = 0
+  private alwaysOnWatchdogTimer: any = null
+  private silenceTimer: any = null
+  private silenceTimerGeneration: number = 0  // Separate counter — NOT asrSessionId
+  private lastPartialTime: number = 0
+
   // Events
   public onQueryReceived: Event<string> = new Event<string>()
-  public onQueryProcessed: Event<{query: string; response: string}> = new Event()
+  public onQueryProcessed: Event<{ query: string; response: string }> = new Event()
   public onSessionStarted: Event<void> = new Event<void>()
   public onSessionEnded: Event<void> = new Event<void>()
   public onSessionTimeout: Event<void> = new Event<void>()
+  public onPartialTranscription: Event<string> = new Event<string>()
 
   onAwake() {
     this.createEvent("OnStartEvent").bind(this.initialize.bind(this))
@@ -116,29 +131,20 @@ export class ChatASRController extends BaseScriptComponent {
       print("ChatASRController: Initialized and connected to AgentOrchestrator + ChatStorage")
     }
 
-    // Auto-start: directly test ASR, bypassing button/session/orchestrator
-    if (this.autoStartListening) {
-      print("ChatASRController: [AutoStart] Will test ASR directly in 3 seconds...")
+    // Auto-start: trigger full voice pipeline after delay (for preview testing)
+    // Loops continuously: ASR → orchestrator → OpenClaw → TTS → wait → ASR again
+    if (this.autoStartListening && !this.enableAlwaysOn) {
+      print("ChatASRController: [Pipeline] Auto-start enabled — continuous voice pipeline will start in 3 seconds")
       setTimeout(() => {
-        print("ChatASRController: [AutoStart] Starting raw ASR test — SPEAK NOW into microphone!")
-        try {
-          const testOpts = AsrModule.AsrTranscriptionOptions.create()
-          testOpts.mode = AsrModule.AsrMode.HighAccuracy
-          testOpts.silenceUntilTerminationMs = 5000
+        this.startContinuousListening()
+      }, 3000)
+    }
 
-          testOpts.onTranscriptionUpdateEvent.add((asrOutput: any) => {
-            print(`ChatASRController: [AutoStart] ASR heard: "${asrOutput.text}" (final: ${asrOutput.isFinal})`)
-          })
-
-          testOpts.onTranscriptionErrorEvent.add((errorCode: any) => {
-            print(`ChatASRController: [AutoStart] ASR error: ${errorCode}`)
-          })
-
-          this.asrModule.startTranscribing(testOpts)
-          print("ChatASRController: [AutoStart] startTranscribing() called OK — listening for 5s")
-        } catch (e) {
-          print(`ChatASRController: [AutoStart] ASR test FAILED: ${e}`)
-        }
+    // Always-on mode: event-driven ASR loop with barge-in support
+    if (this.enableAlwaysOn) {
+      print("ChatASRController: [AlwaysOn] Starting in 3 seconds")
+      setTimeout(() => {
+        this.startAlwaysOnMode()
       }, 3000)
     }
   }
@@ -175,9 +181,20 @@ export class ChatASRController extends BaseScriptComponent {
 
   /**
    * Handle mic button press - start session and begin voice query
+   * In always-on mode, toggles the mode on/off instead.
    */
   private async handleMicButtonPress(): Promise<void> {
     print("ChatASRController: [Diag] Mic button pressed!")
+
+    // In always-on mode, mic button toggles the mode
+    if (this.enableAlwaysOn) {
+      if (this.alwaysOnActive) {
+        this.stopAlwaysOnMode()
+      } else {
+        this.startAlwaysOnMode()
+      }
+      return
+    }
 
     if (this.isProcessingQuery) {
       print("ChatASRController: Already processing a query, ignoring mic press")
@@ -205,6 +222,286 @@ export class ChatASRController extends BaseScriptComponent {
       }
     } catch (error) {
       print(`ChatASRController: Voice interaction failed: ${error}`)
+    }
+  }
+
+  /**
+   * Continuous listening loop for auto-start mode.
+   * After each query completes (and TTS plays), automatically starts listening again.
+   */
+  private async startContinuousListening(): Promise<void> {
+    print("ChatASRController: [Pipeline] Starting continuous listening loop — SPEAK NOW!")
+
+    while (this.autoStartListening) {
+      try {
+        // Wait if orchestrator is still processing (e.g. test mode query)
+        while (this.agentOrchestrator && this.isProcessingQuery) {
+          print("ChatASRController: [Pipeline] Waiting for current query to finish...")
+          await new Promise<void>(resolve => setTimeout(() => resolve(), 1000))
+        }
+
+        print("ChatASRController: [Pipeline] Listening for voice input...")
+        const response = await this.processVoiceQuery()
+        print(`ChatASRController: [Pipeline] Query complete: "${response.substring(0, 50)}..."`)
+
+        // Brief pause before listening again (allows TTS to start playing)
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 2000))
+      } catch (error) {
+        print(`ChatASRController: [Pipeline] Continuous listening error: ${error}`)
+        // Brief pause before retrying
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 2000))
+      }
+    }
+
+    print("ChatASRController: [Pipeline] Continuous listening stopped")
+  }
+
+  // ================================
+  // Always-On Voice Mode
+  // ================================
+
+  /**
+   * Start always-on voice assistant mode.
+   * ASR runs in an event-driven loop. On isFinal, text is dispatched
+   * to the orchestrator fire-and-forget, and ASR restarts immediately.
+   */
+  public startAlwaysOnMode(): void {
+    if (this.alwaysOnActive) {
+      print("ChatASRController: [AlwaysOn] Already active")
+      return
+    }
+
+    this.alwaysOnActive = true
+
+    if (!this.sessionActive) {
+      this.startChatSession()
+    }
+
+    print("ChatASRController: [AlwaysOn] Mode activated — listening")
+    this.startAlwaysOnASR()
+    this.startAlwaysOnWatchdog()
+  }
+
+  /**
+   * Stop always-on voice mode.
+   */
+  public stopAlwaysOnMode(): void {
+    this.alwaysOnActive = false
+    this.asrSessionId++ // Invalidate any pending callbacks
+
+    if (this.isRecording) {
+      this.stopListening()
+    }
+
+    if (this.alwaysOnWatchdogTimer) {
+      this.alwaysOnWatchdogTimer = null
+    }
+
+    this.currentPartialText = ""
+    print("ChatASRController: [AlwaysOn] Mode deactivated")
+  }
+
+  /**
+   * Watchdog: if ASR hasn't restarted in 15 seconds, force-restart it.
+   * Prevents the always-on loop from silently dying.
+   */
+  private startAlwaysOnWatchdog(): void {
+    const checkInterval = (): void => {
+      if (!this.alwaysOnActive) return
+
+      const elapsed = (Date.now() - this.lastASRStartTime) / 1000
+      if (elapsed > 15 && !this.isRecording) {
+        print(`ChatASRController: [AlwaysOn] Watchdog: ASR idle for ${elapsed.toFixed(0)}s — force restarting`)
+        this.startAlwaysOnASR()
+      }
+
+      if (this.alwaysOnActive) {
+        setTimeout(() => checkInterval(), 5000)
+      }
+    }
+
+    setTimeout(() => checkInterval(), 10000)
+  }
+
+  /**
+   * Start a new ASR session within always-on mode.
+   * Called initially and after each isFinal or error to restart listening.
+   */
+  private startAlwaysOnASR(): void {
+    if (!this.alwaysOnActive) return
+
+    const sessionId = ++this.asrSessionId
+    this.currentPartialText = ""
+    this.lastASRStartTime = Date.now()
+
+    // Clean stop any previous ASR session
+    try {
+      this.asrModule.stopTranscribing()
+    } catch (_e) { /* ignore */ }
+
+    this.isRecording = true
+    this.lastActivityTime = Date.now()
+    this.isIntentionallyAnimating = true
+    this.animateActivityIndicator(true)
+
+    const options = this.createAlwaysOnASROptions(sessionId)
+    this.asrModule.startTranscribing(options)
+
+    print(`ChatASRController: [AlwaysOn] ASR session #${sessionId} started — speak now`)
+  }
+
+  /**
+   * Create ASR options for always-on mode with event-driven callbacks.
+   * Does NOT use Promises — dispatches queries fire-and-forget on isFinal.
+   */
+  private createAlwaysOnASROptions(sessionId: number): any {
+    const options = AsrModule.AsrTranscriptionOptions.create()
+    options.mode = AsrModule.AsrMode.HighAccuracy
+    options.silenceUntilTerminationMs = 2000
+
+    options.onTranscriptionUpdateEvent.add((asrOutput: any) => {
+      // Ignore callbacks from stale sessions
+      if (sessionId !== this.asrSessionId) {
+        print(`ChatASRController: [AlwaysOn] STALE callback ignored (session ${sessionId} vs current ${this.asrSessionId})`)
+        return
+      }
+
+      if (asrOutput.isFinal) {
+        this.clearSilenceTimer()
+        const query = asrOutput.text.trim()
+        print(`ChatASRController: [AlwaysOn] Final (isFinal): "${query}"`)
+        this.finalizeAndDispatch(query)
+      } else {
+        // Partial transcription — update UI, check barge-in, start silence timer
+        this.currentPartialText = asrOutput.text
+        this.lastPartialTime = Date.now()
+        print(`ChatASRController: [AlwaysOn] Partial: "${asrOutput.text.substring(0, 40)}" (session ${sessionId}, timerGen ${this.silenceTimerGeneration})`)
+        this.onPartialTranscription.invoke(asrOutput.text)
+
+        // Barge-in: if user starts speaking while TTS is playing, interrupt
+        if (asrOutput.text.length > 3) {
+          this.handleBargeIn()
+        }
+
+        // Start/reset silence timer: if no new partial in 2.5s, treat as final
+        this.resetSilenceTimer(sessionId)
+      }
+    })
+
+    options.onTranscriptionErrorEvent.add((errorCode: any) => {
+      if (sessionId !== this.asrSessionId) return
+
+      this.isRecording = false
+      if (!this.isIntentionallyAnimating) {
+        this.animateActivityIndicator(false)
+      }
+      this.handleTranscriptionError(errorCode)
+
+      // Auto-restart after error
+      if (this.alwaysOnActive) {
+        print("ChatASRController: [AlwaysOn] ASR error, restarting in 2s...")
+        setTimeout(() => {
+          this.startAlwaysOnASR()
+        }, 2000)
+      }
+    })
+
+    return options
+  }
+
+  /**
+   * Finalize current partial text: dispatch to orchestrator and restart ASR.
+   */
+  private finalizeAndDispatch(query: string): void {
+    this.clearSilenceTimer()
+    this.isRecording = false
+    this.isIntentionallyAnimating = false
+    this.animateActivityIndicator(false)
+    this.currentPartialText = ""
+
+    if (query.length > 0) {
+      this.dispatchQueryNonBlocking(query)
+    }
+
+    // Restart ASR immediately
+    setTimeout(() => {
+      this.startAlwaysOnASR()
+    }, 200)
+  }
+
+  /**
+   * Start/reset silence timer. If no new partial transcription arrives within 2.5s,
+   * treat the current partial text as final and dispatch it.
+   * This handles the case where isFinal never fires (e.g. Lens Studio Preview).
+   *
+   * IMPORTANT: Uses silenceTimerGeneration (NOT asrSessionId) for invalidation.
+   * Incrementing asrSessionId would kill ALL ASR callbacks for the current session.
+   */
+  private resetSilenceTimer(sessionId: number): void {
+    this.clearSilenceTimer()
+
+    const timerGen = this.silenceTimerGeneration
+
+    this.silenceTimer = setTimeout(() => {
+      // Guard: timer was cancelled (clearSilenceTimer incremented the generation)
+      if (timerGen !== this.silenceTimerGeneration) return
+      // Guard: ASR session changed (new session started)
+      if (sessionId !== this.asrSessionId) return
+      if (!this.alwaysOnActive) return
+
+      const text = this.currentPartialText.trim()
+      if (text.length > 0) {
+        print(`ChatASRController: [AlwaysOn] Final (silence timer): "${text}"`)
+        // Stop ASR before dispatching to avoid duplicate isFinal
+        try { this.asrModule.stopTranscribing() } catch (_e) { /* ignore */ }
+        this.finalizeAndDispatch(text)
+      }
+    }, 2500)
+  }
+
+  /**
+   * Cancel the current silence timer without affecting ASR session callbacks.
+   * Uses a separate generation counter so ASR callbacks remain valid.
+   */
+  private clearSilenceTimer(): void {
+    if (this.silenceTimer) {
+      this.silenceTimer = null
+    }
+    // Increment timer generation to invalidate any pending setTimeout callback
+    // Does NOT touch asrSessionId — that's only for ASR session lifecycle
+    this.silenceTimerGeneration++
+  }
+
+  /**
+   * Send query to orchestrator without blocking ASR.
+   * Fire-and-forget: ASR restarts immediately, response handled asynchronously.
+   */
+  private dispatchQueryNonBlocking(query: string): void {
+    if (!query || query.trim().length === 0) return
+
+    this.onQueryReceived.invoke(query)
+    print(`ChatASRController: [AlwaysOn] Dispatching: "${query.substring(0, 60)}"`)
+
+    this.agentOrchestrator.processUserQueryNonBlocking(query)
+      .then((response: string) => {
+        this.onQueryProcessed.invoke({ query, response })
+        print(`ChatASRController: [AlwaysOn] Response: "${response.substring(0, 50)}..."`)
+      })
+      .catch((error: any) => {
+        print(`ChatASRController: [AlwaysOn] Query failed: ${error}`)
+      })
+  }
+
+  /**
+   * Barge-in: user started speaking while TTS or response is active.
+   * Stop TTS and abort current query.
+   */
+  private handleBargeIn(): void {
+    if (!this.agentOrchestrator) return
+
+    if (this.agentOrchestrator.isSpeaking()) {
+      print("ChatASRController: [AlwaysOn] BARGE-IN — interrupting TTS and aborting query")
+      this.agentOrchestrator.abortCurrentQuery()
     }
   }
 
@@ -470,7 +767,7 @@ export class ChatASRController extends BaseScriptComponent {
       // Messages are automatically stored and displayed through the proper flow
       const response = await this.agentOrchestrator.processUserQuery(query)
 
-      this.onQueryProcessed.invoke({query, response})
+      this.onQueryProcessed.invoke({ query, response })
 
       if (this.enableDebugLogging) {
         print(`ChatASRController: Orchestrator response: "${response.substring(0, 100)}..."`)
@@ -501,6 +798,8 @@ export class ChatASRController extends BaseScriptComponent {
     options.silenceUntilTerminationMs = 2000 // Shorter silence for chat
 
     options.onTranscriptionUpdateEvent.add((asrOutput) => {
+      print(`ChatASRController: [ASR] Update — isFinal: ${asrOutput.isFinal}, text: "${asrOutput.text.substring(0, 50)}"`)
+
       if (asrOutput.isFinal) {
         this.isRecording = false
         // Clear intentional flag before turning off (this is a successful completion)
@@ -508,6 +807,7 @@ export class ChatASRController extends BaseScriptComponent {
         this.animateActivityIndicator(false)
 
         const query = asrOutput.text.trim()
+        print(`ChatASRController: [ASR] Final transcription: "${query}"`)
 
         if (query.length > 0) {
           resolve(query)

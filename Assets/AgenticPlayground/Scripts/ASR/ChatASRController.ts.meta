@@ -31,6 +31,7 @@
     autoStartListening: false
     chatStorage: false
     continuousListening: false
+    enableAlwaysOn: false
     enableDebugLogging: false
     micButton: false
     sessionTimeout: false
@@ -51,6 +52,7 @@
       sessionTimeout: !<float> 300.000000
       continuousListening: false
       autoStartListening: false
+      enableAlwaysOn: false
   ScriptTypes:
     -
       {}
@@ -63,3 +65,4 @@
     - '// @input float sessionTimeout = 300 {"hint":"Auto-timeout for chat sessions (seconds)"}'
     - '// @input bool continuousListening {"hint":"Enable continuous listening mode"}'
     - '// @input bool autoStartListening {"hint":"Auto-start ASR listening after init (for preview testing — bypasses PinchButton)"}'
+    - '// @input bool enableAlwaysOn {"hint":"Always-on voice mode: ASR runs continuously, auto-sends on silence, supports barge-in"}'

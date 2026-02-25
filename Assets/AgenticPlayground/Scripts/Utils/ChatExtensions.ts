@@ -213,6 +213,74 @@ export class ChatExtensions {
   }
 
   /**
+   * Update user card text at a given index (for partial transcription display).
+   * Same pattern as updateBotCardText.
+   */
+  public static updateUserCardText(agenticChat: ChatComponent, cardIndex: number, newText: string): boolean {
+    if (!agenticChat || cardIndex < 0) return false
+
+    try {
+      const chatAny = agenticChat as any
+      if (!chatAny.cardData || cardIndex >= chatAny.cardData.length) return false
+
+      const card = chatAny.cardData[cardIndex]
+      if (!card || !card.sceneObject) return false
+
+      card.textContent = newText
+
+      // Use setupCardContent to re-apply text (works for both user and bot cards)
+      if (typeof chatAny.setupCardContent === "function") {
+        chatAny.setupCardContent(card)
+        return true
+      }
+
+      // Fallback: try finding Text components directly
+      try {
+        const children = card.sceneObject.children
+        for (let i = 0; i < children.length; i++) {
+          const textComp = children[i].getComponent("Component.Text")
+          if (textComp) {
+            (textComp as Text).text = newText
+            return true
+          }
+        }
+      } catch (_e) { /* silent */ }
+    } catch (error) {
+      print(`ChatExtensions: Error updating user card text: ${error}`)
+    }
+
+    return false
+  }
+
+  /**
+   * Remove a card at a given index (for clearing partial transcription cards).
+   */
+  public static removeCard(agenticChat: ChatComponent, cardIndex: number): boolean {
+    if (!agenticChat || cardIndex < 0) return false
+
+    try {
+      const chatAny = agenticChat as any
+      if (!chatAny.cardData || cardIndex >= chatAny.cardData.length) return false
+
+      const card = chatAny.cardData[cardIndex]
+      if (card && card.sceneObject) {
+        card.sceneObject.destroy()
+      }
+
+      chatAny.cardData.splice(cardIndex, 1)
+      if (chatAny.cards) {
+        chatAny.cards.splice(cardIndex, 1)
+      }
+
+      return true
+    } catch (error) {
+      print(`ChatExtensions: Error removing card: ${error}`)
+    }
+
+    return false
+  }
+
+  /**
    * Get the total number of cards in the AgenticChat component
    */
   public static getCardCount(agenticChat: ChatComponent): number {

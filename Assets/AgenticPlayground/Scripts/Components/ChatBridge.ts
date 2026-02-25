@@ -33,6 +33,11 @@ export class ChatBridge extends BaseScriptComponent {
   @input enableDebugLogging: boolean = true
   @input maxDisplayMessages: number = 50
 
+  @input
+  @hint("Reference to ChatASRController for partial transcription display (optional)")
+  @allowUndefined
+  chatASRController: any
+
   private isConnected: boolean = false
   private lastMessageCount: number = 0
   private connectionRetryCount: number = 0
@@ -42,6 +47,10 @@ export class ChatBridge extends BaseScriptComponent {
   private streamingCardIndex: number = -1
   private isStreamingResponse: boolean = false
   private streamingDidDisplay: boolean = false
+
+  // Partial transcription state for always-on mode
+  private partialCardIndex: number = -1
+  private hasPartialCard: boolean = false
 
   public onMessageDisplayed: Event<ChatMessage> = new Event<ChatMessage>()
   public onError: Event<string> = new Event<string>()
@@ -144,6 +153,16 @@ export class ChatBridge extends BaseScriptComponent {
 
     // Connect to OpenClaw streaming delta for progressive UI
     this.subscribeToStreamingDelta()
+
+    // Connect to ChatASRController for partial transcription display (always-on mode)
+    if (this.chatASRController && this.chatASRController.onPartialTranscription) {
+      this.chatASRController.onPartialTranscription.add((partialText: string) => {
+        this.handlePartialTranscription(partialText)
+      })
+      if (this.enableDebugLogging) {
+        print("ChatBridge: Connected to ChatASRController.onPartialTranscription")
+      }
+    }
 
     // Connect to ChatStorage events
     if (this.chatStorage) {
@@ -258,6 +277,9 @@ export class ChatBridge extends BaseScriptComponent {
       relatedTools: []
     }
 
+    // Remove partial transcription card if it exists (replaced by final text)
+    this.clearPartialCard()
+
     // Display user message immediately
     this.displayMessage(userMessage)
 
@@ -343,6 +365,47 @@ export class ChatBridge extends BaseScriptComponent {
       this.isStreamingResponse = false
       this.streamingCardIndex = -1
     }
+  }
+
+  /**
+   * Handle partial transcription from always-on ASR mode.
+   * Shows a temporary user card with real-time transcription text.
+   */
+  private handlePartialTranscription(partialText: string): void {
+    if (!this.chatLayout || !partialText || partialText.trim().length === 0) return
+
+    const displayText = partialText.trim() + "..."
+
+    if (!this.hasPartialCard) {
+      const added = ChatExtensions.addUserCard(this.chatLayout, displayText)
+      if (added) {
+        this.partialCardIndex = ChatExtensions.getCardCount(this.chatLayout) - 1
+        this.hasPartialCard = true
+      }
+    } else if (this.partialCardIndex >= 0) {
+      // Update the existing partial card text in-place
+      ChatExtensions.updateUserCardText(this.chatLayout, this.partialCardIndex, displayText)
+    }
+  }
+
+  /**
+   * Remove the partial transcription card (called when final text arrives).
+   */
+  private clearPartialCard(): void {
+    if (!this.hasPartialCard || this.partialCardIndex < 0 || !this.chatLayout) {
+      this.hasPartialCard = false
+      this.partialCardIndex = -1
+      return
+    }
+
+    try {
+      ChatExtensions.removeCard(this.chatLayout, this.partialCardIndex)
+    } catch (_e) {
+      // Silent fail for UI cleanup
+    }
+
+    this.hasPartialCard = false
+    this.partialCardIndex = -1
   }
 
   /**
