@@ -19,7 +19,6 @@ This project uses ai-devkit for structured AI-assisted development. Phase docume
 
 ## Development Workflow
 - Review phase documentation in `docs/ai/` before implementing features
-- Project development follows the RIPER-5-MODE protocol defined in `docs/ai/riper-5-mode/RIPER-5-MODE.md`.
 - Keep requirements, design, and implementation docs updated as the project evolves
 - Reference the planning doc for task breakdown and priorities
 - Copy the testing template (`docs/ai/testing/README.md`) before creating feature-specific testing docs
@@ -58,7 +57,7 @@ The AI assistant should proactively use knowledge memory throughout all interact
 
 **How to search**:
 - Use `memory.searchKnowledge` MCP tool with relevant keywords, tags, and scope
-- If MCP tools are unavailable, use `npx ai-devkit memory search` CLI command (see memory skill for details)
+- If MCP tools are unavailable, use `npx ai-devkit@latest memory search` CLI command (see memory skill for details)
 - Example: Search for "authentication patterns" when implementing auth features
 
 ### When to Store Memory
@@ -69,7 +68,7 @@ The AI assistant should proactively use knowledge memory throughout all interact
 
 **How to store**:
 - Use `memory.storeKnowledge` MCP tool
-- If MCP tools are unavailable, use `npx ai-devkit memory store` CLI command (see memory skill for details)
+- If MCP tools are unavailable, use `npx ai-devkit@latest memory store` CLI command (see memory skill for details)
 - Include clear title, detailed content, relevant tags, and appropriate scope
 - Make knowledge specific and actionable, not generic advice
 
