@@ -27,12 +27,11 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     activityIndicator: false
-    agentOrchestrator: false
     autoStartListening: false
-    chatStorage: false
     continuousListening: false
     enableAlwaysOn: false
     enableDebugLogging: false
+    jarvisController: false
     micButton: false
     sessionTimeout: false
   ScriptTypesHidden:
@@ -44,9 +43,8 @@
   Attachments:
     []
   DefaultScriptInputs:
-    - agentOrchestrator: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
-      chatStorage: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
-      micButton: !<MappingBased.AssignableType_2> 00000000-0000-0000-0000-000000000000
+    - jarvisController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      micButton: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
       activityIndicator: !<reference.RenderMeshVisual> 00000000-0000-0000-0000-000000000000
       enableDebugLogging: true
       sessionTimeout: !<float> 300.000000
@@ -57,9 +55,8 @@
     -
       {}
   InputLines:
-    - '// @input AssignableType agentOrchestrator {"hint":"Reference to AgentOrchestrator component"}'
-    - '// @input AssignableType_1 chatStorage {"hint":"Reference to ChatStorage component for storing conversation history"}'
-    - '// @input AssignableType_2 micButton {"hint":"Mic button for starting/stopping chat sessions"}'
+    - '// @input AssignableType jarvisController {"hint":"Reference to JarvisController component"}'
+    - '// @input AssignableType_1 micButton {"hint":"Mic button for starting/stopping chat sessions"}'
     - '// @input Component.RenderMeshVisual activityIndicator {"hint":"Activity indicator visual (RenderMeshVisual)"}'
     - '// @input bool enableDebugLogging = true {"hint":"Enable debug logging"}'
     - '// @input float sessionTimeout = 300 {"hint":"Auto-timeout for chat sessions (seconds)"}'

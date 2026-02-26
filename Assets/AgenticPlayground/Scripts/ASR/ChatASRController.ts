@@ -2,29 +2,20 @@ import { LSTween } from "LSTween.lspkg/LSTween"
 import { PinchButton } from "SpectaclesInteractionKit.lspkg/Components/UI/PinchButton/PinchButton"
 import Event from "SpectaclesInteractionKit.lspkg/Utils/Event"
 import { setTimeout } from "SpectaclesInteractionKit.lspkg/Utils/FunctionTimingUtils"
-import { AgentOrchestrator } from "../Agents/AgentOrchestrator"
-import { ChatStorage } from "../Storage/ChatStorage"
+import { JarvisController } from "../JarvisController"
 
 /**
  * ChatASRController - ASR Controller for Chat functionality
  *
- * According to architecture diagram, this handles the agentic chat flow:
- * User Speech → ChatASRController → AgentOrchestrator → ToolExecutor → Tools → ChatStorage → ChatBridge → ChatComponent
- *
- * This connects voice input directly to the agentic system for real-time
- * intelligent conversation with tool routing capabilities.
- *
- * Now includes mic button, activity indicator, and direct ChatStorage integration for architectural consistency.
+ * Handles voice input for the Jarvis voice bridge:
+ * User Speech → ChatASRController → JarvisController → OpenClawBridge → OpenClaw Server
  */
 @component
 export class ChatASRController extends BaseScriptComponent {
   @input
-  @hint("Reference to AgentOrchestrator component")
-  private agentOrchestrator: AgentOrchestrator
-
-  @input
-  @hint("Reference to ChatStorage component for storing conversation history")
-  private chatStorage: ChatStorage
+  @hint("Reference to JarvisController component")
+  @allowUndefined
+  private jarvisController: JarvisController
 
   @input
   @hint("Mic button for starting/stopping chat sessions")
@@ -102,13 +93,8 @@ export class ChatASRController extends BaseScriptComponent {
   }
 
   private initialize(): void {
-    if (!this.agentOrchestrator) {
-      print("ChatASRController: AgentOrchestrator not assigned")
-      return
-    }
-
-    if (!this.chatStorage) {
-      print("ChatASRController: ChatStorage not assigned")
+    if (!this.jarvisController) {
+      print("ChatASRController: JarvisController not assigned")
       return
     }
 
@@ -128,7 +114,7 @@ export class ChatASRController extends BaseScriptComponent {
     }
 
     if (this.enableDebugLogging) {
-      print("ChatASRController: Initialized and connected to AgentOrchestrator + ChatStorage")
+      print("ChatASRController: Initialized and connected to JarvisController")
     }
 
     // Auto-start: trigger full voice pipeline after delay (for preview testing)
@@ -203,8 +189,8 @@ export class ChatASRController extends BaseScriptComponent {
 
     // Interrupt any playing TTS audio before starting new ASR capture
     try {
-      if (this.agentOrchestrator) {
-        this.agentOrchestrator.abortCurrentQuery()
+      if (this.jarvisController) {
+        this.jarvisController.abortCurrentQuery()
       }
     } catch (e) {
       print(`ChatASRController: [Diag] abortCurrentQuery error (non-fatal): ${e}`)
@@ -234,8 +220,8 @@ export class ChatASRController extends BaseScriptComponent {
 
     while (this.autoStartListening) {
       try {
-        // Wait if orchestrator is still processing (e.g. test mode query)
-        while (this.agentOrchestrator && this.isProcessingQuery) {
+        // Wait if controller is still processing
+        while (this.jarvisController && this.isProcessingQuery) {
           print("ChatASRController: [Pipeline] Waiting for current query to finish...")
           await new Promise<void>(resolve => setTimeout(() => resolve(), 1000))
         }
@@ -482,7 +468,7 @@ export class ChatASRController extends BaseScriptComponent {
     this.onQueryReceived.invoke(query)
     print(`ChatASRController: [AlwaysOn] Dispatching: "${query.substring(0, 60)}"`)
 
-    this.agentOrchestrator.processUserQueryNonBlocking(query)
+    this.jarvisController.processQueryNonBlocking(query)
       .then((response: string) => {
         this.onQueryProcessed.invoke({ query, response })
         print(`ChatASRController: [AlwaysOn] Response: "${response.substring(0, 50)}..."`)
@@ -497,11 +483,11 @@ export class ChatASRController extends BaseScriptComponent {
    * Stop TTS and abort current query.
    */
   private handleBargeIn(): void {
-    if (!this.agentOrchestrator) return
+    if (!this.jarvisController) return
 
-    if (this.agentOrchestrator.isSpeaking()) {
+    if (this.jarvisController.isSpeaking()) {
       print("ChatASRController: [AlwaysOn] BARGE-IN — interrupting TTS and aborting query")
-      this.agentOrchestrator.abortCurrentQuery()
+      this.jarvisController.abortCurrentQuery()
     }
   }
 
@@ -518,11 +504,6 @@ export class ChatASRController extends BaseScriptComponent {
 
     this.sessionActive = true
     this.lastActivityTime = Date.now()
-
-    // Start chat session in storage
-    if (this.chatStorage) {
-      this.chatStorage.startNewSession(`Chat Session ${Date.now()}`)
-    }
 
     this.onSessionStarted.invoke()
 
@@ -543,11 +524,6 @@ export class ChatASRController extends BaseScriptComponent {
 
     if (this.isRecording) {
       this.stopListening()
-    }
-
-    // End session in storage
-    if (this.chatStorage) {
-      this.chatStorage.endCurrentSession()
     }
 
     this.onSessionEnded.invoke()
@@ -722,7 +698,7 @@ export class ChatASRController extends BaseScriptComponent {
   }
 
   /**
-   * Process voice query through AgentOrchestrator
+   * Process voice query through JarvisController
    * This is the core integration point with the agentic system
    */
   public async processVoiceQuery(): Promise<string> {
@@ -742,7 +718,7 @@ export class ChatASRController extends BaseScriptComponent {
   }
 
   /**
-   * Send query to AgentOrchestrator - Core architecture integration
+   * Send query to JarvisController
    */
   private async sendQueryToOrchestrator(query: string): Promise<string> {
     if (!query || query.trim().length === 0) {
@@ -754,24 +730,15 @@ export class ChatASRController extends BaseScriptComponent {
 
     try {
       if (this.enableDebugLogging) {
-        print(`ChatASRController: Routing query to AgentOrchestrator: "${query}"`)
+        print(`ChatASRController: Routing query to JarvisController: "${query}"`)
       }
 
-      // FIX: Remove duplicate message creation
-      // AgentOrchestrator already stores messages in memory via storeConversation()
-      // ChatBridge handles UI display via onQueryProcessed event
-      // This prevents double chat cards for each participant
-
-      // CORE ARCHITECTURE INTEGRATION: Send to AgentOrchestrator
-      // This triggers: Orchestrator → ToolRouter → Tools → Bridges → UI
-      // Messages are automatically stored and displayed through the proper flow
-      const response = await this.agentOrchestrator.processUserQuery(query)
+      const response = await this.jarvisController.processQuery(query)
 
       this.onQueryProcessed.invoke({ query, response })
 
       if (this.enableDebugLogging) {
-        print(`ChatASRController: Orchestrator response: "${response.substring(0, 100)}..."`)
-        print("ChatASRController: Messages handled by AgentOrchestrator → ChatBridge flow")
+        print(`ChatASRController: Response: "${response.substring(0, 100)}..."`)
       }
 
       return response
@@ -779,7 +746,7 @@ export class ChatASRController extends BaseScriptComponent {
       const errorMessage = `Sorry, I encountered an error: ${error}`
 
       if (this.enableDebugLogging) {
-        print(`ChatASRController: Orchestrator error: ${error}`)
+        print(`ChatASRController: Query error: ${error}`)
       }
 
       return errorMessage
@@ -917,7 +884,7 @@ export class ChatASRController extends BaseScriptComponent {
    * Check if system is ready for voice input
    */
   public isReady(): boolean {
-    return this.agentOrchestrator && this.agentOrchestrator.isSystemReady() && !this.isProcessingQuery
+    return this.jarvisController && this.jarvisController.isSystemReady() && !this.isProcessingQuery
   }
 
   /**
@@ -927,20 +894,4 @@ export class ChatASRController extends BaseScriptComponent {
     return !!(this.micButton && this.activityIndicator)
   }
 
-  /**
-   * Get storage integration status
-   */
-  public getStorageStatus(): {
-    hasStorage: boolean
-    currentSession: any
-    totalMessages: number
-  } {
-    const storageStats = this.chatStorage?.getStorageStats()
-
-    return {
-      hasStorage: !!this.chatStorage,
-      currentSession: this.chatStorage?.getCurrentSession(),
-      totalMessages: storageStats?.totalStoredMessages || 0
-    }
-  }
 }

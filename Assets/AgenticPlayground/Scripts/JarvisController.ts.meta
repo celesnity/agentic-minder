@@ -1,0 +1,59 @@
+- !<AssetImportMetadata/1825941c-319a-402f-8f3e-0c0e9257674c>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 5b0417b1-e62c-4a67-806d-50f11169af1a
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 5b0417b1-e62c-4a67-806d-50f11169af1a
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> d020e49f-91e0-49ff-a9e4-7f2107de011b
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/d020e49f-91e0-49ff-a9e4-7f2107de011b>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 3c2451eb-7c13-46c4-aa53-5c17b0302755
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    authToken: false
+    enableDebugLogging: false
+    enableVoiceOutput: false
+    remoteServiceModule: false
+    serverUrl: false
+    ttsAudioComponent: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - remoteServiceModule: !<reference.RemoteServiceModule> 00000000-0000-0000-0000-000000000000
+      ttsAudioComponent: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
+      enableVoiceOutput: true
+      serverUrl: "ws://192.168.1.66:18789"
+      authToken: ""
+      enableDebugLogging: true
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @input Asset.RemoteServiceModule remoteServiceModule {"hint":"RemoteServiceModule reference for WebSocket (InternetModule) + camera (VideoController)"}'
+    - '// @input Component.AudioComponent ttsAudioComponent {"hint":"AudioComponent for native TTS playback"}'
+    - '// @input bool enableVoiceOutput = true {"hint":"Enable voice output via native TTS"}'
+    - '// @input string serverUrl = "ws://192.168.1.66:18789" {"hint":"OpenClaw server WebSocket URL (e.g., ws://192.168.1.66:18789)"}'
+    - '// @input string authToken {"hint":"Gateway auth token from openclaw.json gateway.auth.token"}'
+    - '// @input bool enableDebugLogging = true {"hint":"Enable debug logging"}'

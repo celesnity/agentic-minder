@@ -1,7 +1,7 @@
 import Event from "SpectaclesInteractionKit.lspkg/Utils/Event"
-import {clearTimeout, setTimeout} from "SpectaclesInteractionKit.lspkg/Utils/FunctionTimingUtils"
-import {OpenClawProtocol} from "./OpenClawProtocol"
-import {OpenClawAuth} from "./OpenClawAuth"
+import { clearTimeout, setTimeout } from "SpectaclesInteractionKit.lspkg/Utils/FunctionTimingUtils"
+import { OpenClawProtocol } from "./OpenClawProtocol"
+import { OpenClawAuth } from "./OpenClawAuth"
 import {
   OpenClawConnectionState,
   OpenClawConnectionStatus,
@@ -76,10 +76,10 @@ export class OpenClawBridge {
   // ================================
 
   private config: OpenClawBridgeConfig = {
-    serverUrl: "ws://172.16.98.166:18789",
+    serverUrl: "ws://192.168.1.66:18789",
     authToken: "",
     connectTimeout: 5000,
-    requestTimeout: 15000,
+    requestTimeout: 60000,
     heartbeatInterval: 30000,
     maxReconnectAttempts: 10,
     maxReconnectDelay: 30000,
@@ -266,6 +266,7 @@ export class OpenClawBridge {
 
     // Resolve session key
     const sessionKey = query.sessionKey || this.connectionState.sessionKey
+    print("[OpenClaw] sendQuery: sessionKey=" + sessionKey + ", text=" + (query.text || "").substring(0, 60))
     if (!sessionKey) {
       throw { code: -1, message: "No active session" } as OpenClawError
     }
@@ -313,10 +314,11 @@ export class OpenClawBridge {
     })
 
     // Send chat.send request (returns {status: "started", runId: "..."} immediately)
-    const {id, data} = this.protocol.serializeRequest("chat.send", params as unknown as Record<string, unknown>)
+    const { id, data } = this.protocol.serializeRequest("chat.send", params as unknown as Record<string, unknown>)
     const ackPromise = this.protocol.trackRequest(id)
 
     try {
+      print("[OpenClaw] chat.send frame (" + data.length + " chars): " + data.substring(0, 300))
       this.socket!.send(data)
       print("[OpenClaw] chat.send dispatched, waiting for response events...")
 
@@ -359,7 +361,7 @@ export class OpenClawBridge {
       params.runId = this.currentRunId
     }
 
-    const {id, data} = this.protocol.serializeRequest("chat.abort", params)
+    const { id, data } = this.protocol.serializeRequest("chat.abort", params)
 
     try {
       this.socket!.send(data)
@@ -508,7 +510,7 @@ export class OpenClawBridge {
     this.clearTimer("connectFallbackTimerId")
 
     const connectParams = this.auth.buildConnectParams(this.connectNonce || undefined)
-    const {id, data} = this.protocol.serializeRequest(
+    const { id, data } = this.protocol.serializeRequest(
       "connect",
       connectParams as unknown as Record<string, unknown>
     )
@@ -874,7 +876,7 @@ export class OpenClawBridge {
       throw { code: -2, message: "Not connected to OpenClaw" } as OpenClawError
     }
 
-    const {id, data} = this.protocol.serializeRequest(method, params)
+    const { id, data } = this.protocol.serializeRequest(method, params)
     const responsePromise = this.protocol.trackRequest(id)
 
     try {

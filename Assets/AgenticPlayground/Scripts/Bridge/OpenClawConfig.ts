@@ -4,7 +4,7 @@ import { OpenClawBridgeConfig } from "./OpenClawTypes"
  * OpenClawConfig - Configuration management for the OpenClaw bridge
  *
  * Provides default configuration values and persistence to PersistentStorage.
- * Configuration can be overridden via AgentOrchestrator inspector inputs.
+ * Configuration can be overridden via JarvisController inspector inputs.
  */
 
 // Storage key prefix
@@ -14,7 +14,7 @@ const CONFIG_PREFIX = "openclaw_config_"
  * Default configuration values.
  */
 export const OPENCLAW_DEFAULTS: OpenClawBridgeConfig = {
-  serverUrl: "ws://172.16.98.166:18789",
+  serverUrl: "ws://192.168.1.66:18789",
   authToken: "",
   connectTimeout: 5000,
   requestTimeout: 15000,

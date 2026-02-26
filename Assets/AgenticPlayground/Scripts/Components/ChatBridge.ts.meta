@@ -26,12 +26,10 @@
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
-    agentOrchestrator: false
     chatASRController: false
     chatLayout: false
-    chatStorage: false
     enableDebugLogging: false
-    maxDisplayMessages: false
+    jarvisController: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -41,19 +39,15 @@
   Attachments:
     []
   DefaultScriptInputs:
-    - agentOrchestrator: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
-      chatStorage: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
-      chatLayout: !<MappingBased.AssignableType_2> 00000000-0000-0000-0000-000000000000
+    - jarvisController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      chatLayout: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
       enableDebugLogging: true
-      maxDisplayMessages: !<float> 50.000000
-      chatASRController: !<MappingBased.AssignableType_3> 00000000-0000-0000-0000-000000000000
+      chatASRController: !<MappingBased.AssignableType_2> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
   InputLines:
-    - '// @input AssignableType agentOrchestrator {"hint":"Reference to AgentOrchestrator component"}'
-    - '// @input AssignableType_1 chatStorage {"hint":"Reference to ChatStorage component"}'
-    - '// @input AssignableType_2 chatLayout {"hint":"Reference to ChatComponent for UI display"}'
+    - '// @input AssignableType jarvisController {"hint":"Reference to JarvisController component"}'
+    - '// @input AssignableType_1 chatLayout {"hint":"Reference to ChatComponent for UI display"}'
     - // @input bool enableDebugLogging = true
-    - // @input float maxDisplayMessages = 50
-    - '// @input AssignableType_3 chatASRController {"hint":"Reference to ChatASRController for partial transcription display (optional)"}'
+    - '// @input AssignableType_2 chatASRController {"hint":"Reference to ChatASRController for partial transcription display (optional)"}'

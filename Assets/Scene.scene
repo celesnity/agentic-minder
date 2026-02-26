@@ -28,6 +28,7 @@
     - !<own> 774711fa-f3a1-4241-a6a8-dc54fae75167
     - !<own> e1ed8935-90f4-4304-bfc4-aeec31f90fb0
     - !<own> 676793b3-e7a1-4f84-b014-2e1cc81a34d5
+    - !<own> 53a9ae9e-7602-4646-a238-63bcdf504698
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -3243,6 +3244,21 @@
     - !<own> 83bcfeaa-abed-4557-85bb-cbb4cd35534f
   Components:
     - !<own> 63b48da8-939c-420e-b392-de963f98e55c
+- !<SceneObject/53a9ae9e-7602-4646-a238-63bcdf504698>
+  PrefabRemaps:
+    []
+  Name: JarvisController
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> b7541da1-6acd-4a8a-a0fa-0c3a342cdfd9
 - !<SceneObject/541a1667-fb17-43bf-bd3b-7b713063d3f7>
   PrefabRemaps:
     []
@@ -4402,18 +4418,16 @@
   Enabled: true
   ScriptAsset: !<reference> bcb7d81c-b2e6-4e4c-96e6-41a2ea5ab8ad
   ScriptInputsDefault:
+    jarvisController: true
     enableDebugLogging: true
-    maxDisplayMessages: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
     "":
-      agentOrchestrator: !<MappingBased.AssignableType> 0a6c70c2-c4fd-4d98-b5e6-89d67af979af
-      chatStorage: !<MappingBased.AssignableType_1> 9724e5ac-84ec-4929-8a0b-c63551dd893e
-      chatLayout: !<MappingBased.AssignableType_2> db4e5093-2915-4d0e-b671-00f371490883
+      jarvisController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      chatLayout: !<MappingBased.AssignableType_1> db4e5093-2915-4d0e-b671-00f371490883
       enableDebugLogging: true
-      maxDisplayMessages: !<float> 50.000000
-      chatASRController: !<MappingBased.AssignableType_3> 8521a020-3fdd-4504-85c1-9eddd49f30b1
+      chatASRController: !<MappingBased.AssignableType_2> 8521a020-3fdd-4504-85c1-9eddd49f30b1
   ScriptTypes:
     "":
       {}
@@ -4973,9 +4987,8 @@
     {}
   ScriptInputs:
     "":
-      agentOrchestrator: !<MappingBased.AssignableType> 0a6c70c2-c4fd-4d98-b5e6-89d67af979af
-      chatStorage: !<MappingBased.AssignableType_1> 9724e5ac-84ec-4929-8a0b-c63551dd893e
-      micButton: !<MappingBased.AssignableType_2> cd696cc5-79f4-48cb-b2a2-59ac04c5c107
+      jarvisController: !<MappingBased.AssignableType> b7541da1-6acd-4a8a-a0fa-0c3a342cdfd9
+      micButton: !<MappingBased.AssignableType_1> cd696cc5-79f4-48cb-b2a2-59ac04c5c107
       activityIndicator: !<reference.RenderMeshVisual> 4da6d07c-2a57-4c55-8d38-dab9f198704a
       enableDebugLogging: true
       sessionTimeout: !<float> 300.000000
@@ -7122,6 +7135,29 @@
     - !<own> af1f37ee-22ea-45a4-b833-bf90f24f074b
   Components:
     []
+- !<ScriptComponent/b7541da1-6acd-4a8a-a0fa-0c3a342cdfd9>
+  PrefabRemaps:
+    []
+  Name: JarvisController
+  Enabled: true
+  ScriptAsset: !<reference> 5b0417b1-e62c-4a67-806d-50f11169af1a
+  ScriptInputsDefault:
+    enableVoiceOutput: true
+    serverUrl: true
+    enableDebugLogging: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      remoteServiceModule: !<reference.RemoteServiceModule> e117198d-99a1-4c0f-8115-07cc9450fe66
+      ttsAudioComponent: !<reference.AudioComponent> b3c0de53-4c5d-427e-ace6-6609b6ebf881
+      enableVoiceOutput: true
+      serverUrl: "ws://192.168.1.66:18789"
+      authToken: celesnity-minder
+      enableDebugLogging: true
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/b9209fec-b989-4422-a397-b0b560812e8e>
   PrefabRemaps:
     []
