@@ -14,7 +14,7 @@ const CONFIG_PREFIX = "openclaw_config_"
  * Default configuration values.
  */
 export const OPENCLAW_DEFAULTS: OpenClawBridgeConfig = {
-  serverUrl: "ws://192.168.1.66:18789",
+  serverUrl: "ws://172.16.0.93:18789",
   authToken: "",
   connectTimeout: 5000,
   requestTimeout: 15000,

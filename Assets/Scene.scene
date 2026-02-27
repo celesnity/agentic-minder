@@ -5,7 +5,6 @@
     - !<own> 00000000-0000-0065-0000-000000000064
     - !<own> b53a6311-5a48-4fbd-b254-5412f6cf8786
     - !<own> 5aa0f98b-e799-448c-a2dc-cae5d04fa2a4
-    - !<own> e98b2a4f-f300-4094-a125-464834a4be87
     - !<own> 1b55a799-781e-4c9b-a064-753ddee7112d
     - !<own> ca311c7c-5de6-43e1-a70e-b6641c0d45a5
     - !<own> 362d712d-3aa2-470c-8b9d-9b6467c32954
@@ -1911,31 +1910,6 @@
     - !<own> 30758cf2-9a47-41be-8c29-cd314eec035f
   Components:
     []
-- !<ScriptComponent/33f8597e-1987-4ead-9d57-184180a88f6c>
-  PrefabRemaps:
-    []
-  Name: Billboard
-  Enabled: true
-  ScriptAsset: !<reference> 74eafc23-e98b-4073-ab18-82ca532994e3
-  ScriptInputsDefault:
-    _yAxisEnabled: true
-    _zAxisEnabled: true
-    _axisBufferDegrees: true
-    _axisEasing: true
-    duration: true
-  ScriptTypesDefault:
-    {}
-  ScriptInputs:
-    "":
-      _xAxisEnabled: true
-      _yAxisEnabled: true
-      _zAxisEnabled: false
-      _axisBufferDegrees: !<Vec3> {x: 0.000000, y: 0.000000, z: 0.000000}
-      _axisEasing: !<Vec3> {x: 1.000000, y: 1.000000, z: 1.000000}
-      duration: 0.033000
-  ScriptTypes:
-    "":
-      {}
 - !<Text/35111562-d89e-4d4a-84eb-4a7f08881872>
   PrefabRemaps:
     []
@@ -3911,25 +3885,6 @@
     []
   Components:
     - !<own> fa800d86-8f87-45d0-b368-028946040a24
-- !<Image/5f291a0f-50e3-44f6-9f42-81b93d879867>
-  PrefabRemaps:
-    []
-  Name: Image
-  Enabled: true
-  RenderOrder: 9999
-  StretchMode: Fit
-  VerticalAlignment: Center
-  HorizontalAlignment: Center
-  MeshShadowMode: None
-  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
-  ShadowDensity: 1.000000
-  Materials:
-    - !<reference> 0c055d20-6a34-42bb-945a-71cd278b0173
-  FlipX: false
-  FlipY: false
-  RotationAngle: 0
-  Pivot: {x: 0.000000, y: 0.000000}
-  ExtentsTarget: !<reference> 00000000-0000-0000-0000-000000000000
 - !<ScriptComponent/5fde740b-c6a5-4b6a-bf21-b0799f0c597d>
   PrefabRemaps:
     []
@@ -4226,22 +4181,6 @@
     - !<own> fc530e67-51dc-4b55-8306-a92acdd025f6
   Components:
     []
-- !<SceneObject/6c95386a-15e1-46d4-8203-4f799e5d03db>
-  PrefabRemaps:
-    []
-  Name: Behaviors
-  Enabled: true
-  Layers: 1
-  LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
-    HasSegmentScaleCompensation: false
-  Children:
-    - !<own> d2180f57-96f9-4629-940b-1c2278e23ea7
-  Components:
-    - !<own> d3b51dd0-792d-4634-8174-bfdb79f88c94
-    - !<own> 33f8597e-1987-4ead-9d57-184180a88f6c
 - !<RenderMeshVisual/6cac85a8-f502-4056-881b-db428723681c>
   PrefabRemaps:
     []
@@ -6578,22 +6517,6 @@
     []
   Components:
     - !<own> 2a89106b-fd22-45eb-9f18-9b3b46eb9faf
-- !<ScriptComponent/ad63de5f-10ec-4e77-9e40-eb76a47fc387>
-  PrefabRemaps:
-    []
-  Name: InternetAvailabilityPopUp
-  Enabled: true
-  ScriptAsset: !<reference> fac757c8-713a-4579-a428-7abb0bd870dc
-  ScriptInputsDefault:
-    {}
-  ScriptTypesDefault:
-    {}
-  ScriptInputs:
-    "":
-      popup: !<reference.SceneObject> 6c95386a-15e1-46d4-8203-4f799e5d03db
-  ScriptTypes:
-    "":
-      {}
 - !<ScriptComponent/ae8a30a7-9a90-4275-b885-b1da15a9e189>
   PrefabRemaps:
     []
@@ -7143,7 +7066,6 @@
   ScriptAsset: !<reference> 5b0417b1-e62c-4a67-806d-50f11169af1a
   ScriptInputsDefault:
     enableVoiceOutput: true
-    serverUrl: true
     enableDebugLogging: true
   ScriptTypesDefault:
     {}
@@ -7152,7 +7074,7 @@
       remoteServiceModule: !<reference.RemoteServiceModule> e117198d-99a1-4c0f-8115-07cc9450fe66
       ttsAudioComponent: !<reference.AudioComponent> b3c0de53-4c5d-427e-ace6-6609b6ebf881
       enableVoiceOutput: true
-      serverUrl: "ws://192.168.1.66:18789"
+      serverUrl: "ws://172.16.0.93:18789"
       authToken: celesnity-minder
       enableDebugLogging: true
   ScriptTypes:
@@ -7225,21 +7147,6 @@
   ScriptTypes:
     "":
       {}
-- !<SceneObject/bc78d816-aa50-44b4-ae84-f0390a2d14cc>
-  PrefabRemaps:
-    []
-  Name: Object 0
-  Enabled: true
-  Layers: 1
-  LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 32.000000, y: 32.000000, z: 32.000000}
-    HasSegmentScaleCompensation: false
-  Children:
-    []
-  Components:
-    - !<own> 5f291a0f-50e3-44f6-9f42-81b93d879867
 - !<SceneObject/bced2f07-b559-4972-a7ab-7c82fb7d52a7>
   PrefabRemaps:
     []
@@ -8088,21 +7995,6 @@
   ScriptTypes:
     "":
       {}
-- !<SceneObject/d2180f57-96f9-4629-940b-1c2278e23ea7>
-  PrefabRemaps:
-    []
-  Name: Visuals
-  Enabled: true
-  Layers: 1
-  LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
-    HasSegmentScaleCompensation: false
-  Children:
-    - !<own> bc78d816-aa50-44b4-ae84-f0390a2d14cc
-  Components:
-    []
 - !<ScriptComponent/d2204f9b-1c58-426d-9bc3-ce0b6f137c49>
   PrefabRemaps:
     []
@@ -8222,45 +8114,6 @@
       testDiagramWithSpecifications: false
       testSpecification: AI Fundamentals
       testPhaseIndex: !<float> 2.000000
-  ScriptTypes:
-    "":
-      {}
-- !<ScriptComponent/d3b51dd0-792d-4634-8174-bfdb79f88c94>
-  PrefabRemaps:
-    []
-  Name: Headlock
-  Enabled: true
-  ScriptAsset: !<reference> 2a92f85a-a814-4f5d-bd73-4a2710147d01
-  ScriptInputsDefault:
-    _xzEnabled: true
-    _xzEasing: true
-    _yEnabled: true
-    _yEasing: true
-    _translationBuffer: true
-    _lockedPitch: true
-    _pitchOffsetDegrees: true
-    _pitchBufferDegrees: true
-    _lockedYaw: true
-    _yawOffsetDegrees: true
-    _yawBufferDegrees: true
-  ScriptTypesDefault:
-    {}
-  ScriptInputs:
-    "":
-      _distance: !<float> 110.000000
-      _xzEnabled: true
-      _xzEasing: !<float> 1.000000
-      _yEnabled: true
-      _yEasing: !<float> 1.000000
-      _translationBuffer: !<float> 0.000000
-      _lockedPitch: true
-      _pitchEasing: 0.200000
-      _pitchOffsetDegrees: !<float> 0.000000
-      _pitchBufferDegrees: !<float> 0.000000
-      _lockedYaw: true
-      _yawEasing: 0.200000
-      _yawOffsetDegrees: !<float> 0.000000
-      _yawBufferDegrees: !<float> 0.000000
   ScriptTypes:
     "":
       {}
@@ -9116,21 +8969,6 @@
     []
   Components:
     []
-- !<SceneObject/e98b2a4f-f300-4094-a125-464834a4be87>
-  PrefabRemaps:
-    []
-  Name: InternetAvailabilityPopUp
-  Enabled: true
-  Layers: 1
-  LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
-    HasSegmentScaleCompensation: false
-  Children:
-    - !<own> 6c95386a-15e1-46d4-8203-4f799e5d03db
-  Components:
-    - !<own> ad63de5f-10ec-4e77-9e40-eb76a47fc387
 - !<SceneObject/e9fc661e-4f80-499e-9084-7b4233bea3d8>
   PrefabRemaps:
     []

@@ -54,6 +54,6 @@
     - '// @input Asset.RemoteServiceModule remoteServiceModule {"hint":"RemoteServiceModule reference for WebSocket (InternetModule) + camera (VideoController)"}'
     - '// @input Component.AudioComponent ttsAudioComponent {"hint":"AudioComponent for native TTS playback"}'
     - '// @input bool enableVoiceOutput = true {"hint":"Enable voice output via native TTS"}'
-    - '// @input string serverUrl = "ws://192.168.1.66:18789" {"hint":"OpenClaw server WebSocket URL (e.g., ws://192.168.1.66:18789)"}'
+    - '// @input string serverUrl = "ws://172.16.0.93:18789" {"hint":"OpenClaw server WebSocket URL (e.g., ws://172.16.0.93:18789)"}'
     - '// @input string authToken {"hint":"Gateway auth token from openclaw.json gateway.auth.token"}'
     - '// @input bool enableDebugLogging = true {"hint":"Enable debug logging"}'

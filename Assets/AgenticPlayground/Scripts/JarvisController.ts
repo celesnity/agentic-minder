@@ -33,8 +33,8 @@ export class JarvisController extends BaseScriptComponent {
   enableVoiceOutput: boolean = true
 
   @input
-  @hint("OpenClaw server WebSocket URL (e.g., ws://192.168.1.66:18789)")
-  serverUrl: string = "ws://192.168.1.66:18789"
+  @hint("OpenClaw server WebSocket URL (e.g., ws://172.16.0.93:18789)")
+  serverUrl: string = "ws://172.16.0.93:18789"
 
   @input
   @hint("Gateway auth token from openclaw.json gateway.auth.token")

@@ -76,7 +76,7 @@ export class OpenClawBridge {
   // ================================
 
   private config: OpenClawBridgeConfig = {
-    serverUrl: "ws://192.168.1.66:18789",
+    serverUrl: "ws://172.16.0.93:18789",
     authToken: "",
     connectTimeout: 5000,
     requestTimeout: 60000,
@@ -481,44 +481,51 @@ export class OpenClawBridge {
   // ================================
 
   private onSocketOpen(): void {
-    print("[OpenClaw] WebSocket opened")
+    print("[OpenClaw] WebSocket opened — waiting for challenge")
     this.clearTimer("connectTimeoutId")
     this.setStatus("authenticating")
     this.queueConnect()
   }
 
   /**
-   * Start the connect handshake. Waits up to 750ms for a connect.challenge
-   * event from the server. If no challenge arrives, sends ConnectParams anyway.
-   * This matches the GatewayClient behavior.
+   * Wait for connect.challenge from the server, then send ConnectParams.
+   * The challenge typically arrives within ~50ms of WebSocket open.
+   * Fallback: if no challenge in 300ms, send anyway (token-only auth).
    */
   private queueConnect(): void {
     this.connectNonce = null
     this.connectSent = false
+    // Wait for challenge event (handleConnectChallenge will call sendConnectHandshake)
+    // Fallback: send after 300ms if no challenge arrives
     this.connectFallbackTimerId = setTimeout(() => {
-      this.sendConnectHandshake()
-    }, 750)
+      if (!this.connectSent) {
+        print("[OpenClaw] No challenge in 300ms — sending ConnectParams without nonce")
+        this.sendConnectHandshake()
+      }
+    }, 300)
   }
 
   /**
    * Send ConnectParams as a proper request frame (method: "connect").
-   * If a connect.challenge nonce was received, it's passed to auth for signing.
+   * If a connect.challenge nonce was received, it's included.
    */
   private sendConnectHandshake(): void {
     if (this.connectSent) return
     this.connectSent = true
     this.clearTimer("connectFallbackTimerId")
 
+    print("[OpenClaw] Building ConnectParams...")
     const connectParams = this.auth.buildConnectParams(this.connectNonce || undefined)
     const { id, data } = this.protocol.serializeRequest(
       "connect",
       connectParams as unknown as Record<string, unknown>
     )
+    print("[OpenClaw] Connect frame ready (" + data.length + " chars), sending...")
     const responsePromise = this.protocol.trackRequest(id)
 
     try {
       this.socket!.send(data)
-      print("[OpenClaw] ConnectParams sent (nonce=" + (this.connectNonce ? "yes" : "none") + ")")
+      print("[OpenClaw] ConnectParams sent OK (nonce=" + (this.connectNonce ? "yes" : "none") + ", frame=" + data.substring(0, 120) + "...)")
     } catch (e) {
       print("[OpenClaw] Failed to send ConnectParams: " + e)
       this.disconnect()
