@@ -28,6 +28,7 @@
     - !<own> e1ed8935-90f4-4304-bfc4-aeec31f90fb0
     - !<own> 676793b3-e7a1-4f84-b014-2e1cc81a34d5
     - !<own> 53a9ae9e-7602-4646-a238-63bcdf504698
+    - !<own> f3417baf-a052-4f18-a34d-84378e30a478
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -1327,6 +1328,24 @@
       customFunctionForOnButtonPinched: !<reference.ScriptComponent> 334df627-1240-4351-b1bc-e94ca27b01a7
       onButtonPinchedFunctionNames: !<string[]>
         - resetAllStorage
+  ScriptTypes:
+    "":
+      {}
+- !<ScriptComponent/247eef5b-d763-4760-a69c-c6261407ee4f>
+  PrefabRemaps:
+    []
+  Name: StreamingAudioBridge
+  Enabled: true
+  ScriptAsset: !<reference> 3eb1a473-611b-45a4-977e-366ead015fb4
+  ScriptInputsDefault:
+    {}
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      micTrack: !<reference.AudioTrackAsset> 37f1b7fc-46a2-4032-beee-0cf886629641
+      outputTrack: !<reference.AudioTrackAsset> a71810dc-92bf-4446-91e6-6ca00e63ed04
+      energyThreshold: !<float> 50.000000
   ScriptTypes:
     "":
       {}
@@ -6238,6 +6257,23 @@
     []
   Components:
     - !<own> 94ddd2fe-0a0e-4b9e-9b9d-44c2e5bb1556
+- !<AudioComponent/a1b2c3d4-e5f6-7890-abcd-1234567890ab>
+  PrefabRemaps:
+    []
+  Name: TTS Audio Output
+  Enabled: true
+  AudioTrack: !<reference> a71810dc-92bf-4446-91e6-6ca00e63ed04
+  EnableAutoplayLoop: false
+  Volume: 1.000000
+  EnableMixToSnap: false
+  RecordVolume: 1.000000
+  EnableSpatialAudio: false
+  EnableDistanceEffect: false
+  CurveType: Logarithm
+  MinDistance: 0.000000
+  MaxDistance: 100.000000
+  EnableDirectivityEffect: false
+  EnablePositionEffect: false
 - !<Text/a1caa87c-bd69-4d43-bf55-934ca5fb68bc>
   PrefabRemaps:
     []
@@ -6368,6 +6404,28 @@
     - !<own> edd37114-538a-48d9-b616-83c1e2aacc3f
   Components:
     []
+- !<ScriptComponent/aaebd5fb-fb39-419a-bab2-2eca3424dcbe>
+  PrefabRemaps:
+    []
+  Name: StreamingVoiceController
+  Enabled: true
+  ScriptAsset: !<reference> 2be01539-a50f-4d31-8046-656ebdfe5de4
+  ScriptInputsDefault:
+    bargeInThreshold: true
+    minInterruptionDuration: true
+    userAwayTimeout: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      audioBridge: !<reference.ScriptComponent> 247eef5b-d763-4760-a69c-c6261407ee4f
+      voiceProxyUrl: "ws://172.16.2.117:8765"
+      bargeInThreshold: !<float> 200.000000
+      minInterruptionDuration: !<float> 500.000000
+      userAwayTimeout: !<float> 15000.000000
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/ab1aa61a-e0da-433d-a041-b810e1c57de2>
   PrefabRemaps:
     []
@@ -7074,8 +7132,12 @@
       remoteServiceModule: !<reference.RemoteServiceModule> e117198d-99a1-4c0f-8115-07cc9450fe66
       ttsAudioComponent: !<reference.AudioComponent> b3c0de53-4c5d-427e-ace6-6609b6ebf881
       enableVoiceOutput: true
-      serverUrl: "ws://172.16.0.93:18789"
+      serverUrl: "ws://172.16.2.117:18789"
       authToken: celesnity-minder
+      streamingMode: true
+      voiceProxyUrl: "ws://172.16.2.117:8765"
+      streamingVoiceController: !<reference.ScriptComponent> aaebd5fb-fb39-419a-bab2-2eca3424dcbe
+      hybridVoiceController: !<reference.ScriptComponent> d1a2b3c4-e5f6-7890-abcd-ef1234567890
       enableDebugLogging: true
   ScriptTypes:
     "":
@@ -7992,6 +8054,24 @@
       acceptableYDirections: !<float> 0.000000
       acceptableZDirections: !<float> 1.000000
       useFilteredPinch: false
+  ScriptTypes:
+    "":
+      {}
+- !<ScriptComponent/d1a2b3c4-e5f6-7890-abcd-ef1234567890>
+  PrefabRemaps:
+    []
+  Name: HybridVoiceController
+  Enabled: true
+  ScriptAsset: !<reference> 3f53fcf3-c3e6-4b3b-b48c-7515b8db0750
+  ScriptInputsDefault:
+    voiceProxyUrl: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      outputTrack: !<reference.AudioTrackAsset> a71810dc-92bf-4446-91e6-6ca00e63ed04
+      audioComponent: !<reference.AudioComponent> a1b2c3d4-e5f6-7890-abcd-1234567890ab
+      voiceProxyUrl: "ws://172.16.2.117:8765"
   ScriptTypes:
     "":
       {}
@@ -9075,6 +9155,23 @@
     CapitalizationOverride: None
   DepthTest: false
   TwoSided: false
+- !<AudioComponent/ec29c5e5-c9e8-4537-a36b-97cb7cc0eb67>
+  PrefabRemaps:
+    []
+  Name: Audio
+  Enabled: true
+  AudioTrack: !<reference> 37f1b7fc-46a2-4032-beee-0cf886629641
+  EnableAutoplayLoop: false
+  Volume: 0.490000
+  EnableMixToSnap: false
+  RecordVolume: 1.000000
+  EnableSpatialAudio: false
+  EnableDistanceEffect: false
+  CurveType: Logarithm
+  MinDistance: 0.000000
+  MaxDistance: 100.000000
+  EnableDirectivityEffect: false
+  EnablePositionEffect: false
 - !<SceneObject/ec5cf781-7365-4db2-83df-e3d10556ffd3>
   PrefabRemaps:
     []
@@ -9311,6 +9408,25 @@
     []
   Components:
     - !<own> 120b4fc6-6ea3-4ef4-8789-f98fceddb8ec
+- !<SceneObject/f3417baf-a052-4f18-a34d-84378e30a478>
+  PrefabRemaps:
+    []
+  Name: StreamingVoice
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 247eef5b-d763-4760-a69c-c6261407ee4f
+    - !<own> aaebd5fb-fb39-419a-bab2-2eca3424dcbe
+    - !<own> ec29c5e5-c9e8-4537-a36b-97cb7cc0eb67
+    - !<own> d1a2b3c4-e5f6-7890-abcd-ef1234567890
+    - !<own> a1b2c3d4-e5f6-7890-abcd-1234567890ab
 - !<ScriptComponent/f3eecf9e-0db2-427f-ae98-97404e51ba21>
   PrefabRemaps:
     []

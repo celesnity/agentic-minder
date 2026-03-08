@@ -1,0 +1,36 @@
+[0.001] [HybridVoice] Awake
+[0.277] [HybridVoice] InternetModule acquired
+[0.278] [HybridVoice] AudioOutput initialized: sampleRate=16000
+[0.278] [HybridVoice] AudioComponent ready (will call play(-1) when audio starts)
+[0.278] [HybridVoice] === INIT SUMMARY ===
+[0.279] [HybridVoice]   outputTrack: SET
+[0.279] [HybridVoice]   audioComponent: SET
+[0.279] [HybridVoice]   audioOutput: SET
+[0.279] [HybridVoice]   playbackReady: true
+[0.279] [HybridVoice] ===================
+[0.280] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[0.495] [HybridVoice] Connected to voice proxy
+[0.497] [RemoteLogger] Socket attached (12 buffered)
+[0.499] [HybridVoice] Session started (text input mode)
+[0.528] [HybridVoice] TEST TONE: 440Hz beep enqueued (8000 samples)
+[1.175] [HybridVoice] Session confirmed: inputMode=text
+[8.838] [HybridVoice] idle → processing
+[8.838] [HybridVoice] Query sent: 'is from a good person.'
+[12.898] [HybridVoice] Barge-in! Interrupting agent (was processing)
+[12.903] [HybridVoice] Playback flushed
+[12.904] [HybridVoice] processing → idle
+[12.926] [HybridVoice] Playback flushed
+[15.235] [HybridVoice] idle → processing
+[15.235] [HybridVoice] Query sent: 'Um, a good person.'
+[24.406] [HybridVoice] processing → responding
+[24.642] [HybridVoice] FIRST audio chunk: 4172B, state=responding, playbackReady=true, audioOutput=true
+[24.725] [HybridVoice] AudioComponent play(-1) called — starting playback
+[24.725] [HybridVoice] Jitter buffer full — draining 3 chunks
+[24.727] [HybridVoice] FIRST frame enqueued: 2086 samples
+[30.188] [HybridVoice] Audio: 50 chunks, 212218B total
+[36.754] [HybridVoice] Audio: 100 chunks, 424726B total
+[39.409] [HybridVoice] Audio: 150 chunks, 640204B total
+[41.721] [HybridVoice] Audio: 200 chunks, 860142B total
+[43.896] [HybridVoice] Audio: 250 chunks, 1074134B total
+[45.133] [HybridVoice] Response done: 279 chunks, 1193302B audio, 279 frames enqueued
+[45.133] [HybridVoice] responding → idle

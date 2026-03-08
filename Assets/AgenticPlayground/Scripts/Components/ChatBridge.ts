@@ -115,6 +115,9 @@ export class ChatBridge extends BaseScriptComponent {
 
       // Subscribe to streaming delta for progressive UI
       this.subscribeToStreamingDelta()
+
+      // Subscribe to transcript events (streaming voice mode)
+      this.subscribeToTranscripts()
     }
 
     // Connect to ChatASRController for partial transcription display (always-on mode)
@@ -135,6 +138,36 @@ export class ChatBridge extends BaseScriptComponent {
   }
 
   private streamingDeltaSubscribed: boolean = false
+  private transcriptSubscribed: boolean = false
+
+  /**
+   * Subscribe to streaming voice transcript events (user's speech).
+   * In streaming mode, transcripts come from the voice proxy via JarvisController.
+   */
+  private subscribeToTranscripts(): void {
+    if (this.transcriptSubscribed) return
+    if (!this.jarvisController) return
+
+    if (this.jarvisController.onTranscript && this.jarvisController.onTranscript.add) {
+      this.jarvisController.onTranscript.add((data: {text: string; isFinal: boolean}) => {
+        if (data.isFinal && data.text.trim().length > 0) {
+          // Show final transcript as user card
+          this.clearPartialCard()
+          this.displayMessage({
+            id: `msg_${Date.now()}_user`,
+            type: "user",
+            content: data.text.trim(),
+            timestamp: Date.now(),
+            cardIndex: -1,
+          })
+        }
+      })
+      this.transcriptSubscribed = true
+      if (this.enableDebugLogging) {
+        print("ChatBridge: Connected to JarvisController.onTranscript")
+      }
+    }
+  }
 
   /**
    * Subscribe to OpenClaw streaming delta events via JarvisController.
@@ -351,6 +384,10 @@ export class ChatBridge extends BaseScriptComponent {
 
     if (!this.streamingDeltaSubscribed) {
       this.subscribeToStreamingDelta()
+    }
+
+    if (!this.transcriptSubscribed) {
+      this.subscribeToTranscripts()
     }
   }
 

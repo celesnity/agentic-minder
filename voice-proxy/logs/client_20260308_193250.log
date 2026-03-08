@@ -1,0 +1,11 @@
+[266.142] [HybridVoice] Socket closed: code=1011
+[266.142] [HybridVoice] Reconnecting in 1000ms (attempt 1)
+[267.146] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[267.231] [HybridVoice] Socket error
+[267.231] [HybridVoice] Socket closed: code=1011
+[267.231] [HybridVoice] Reconnecting in 2000ms (attempt 2)
+[269.234] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[269.283] [HybridVoice] Connected to voice proxy
+[269.283] [RemoteLogger] Socket attached (8 buffered)
+[269.284] [HybridVoice] Session started (text input mode)
+[272.240] [HybridVoice] Session confirmed: inputMode=text

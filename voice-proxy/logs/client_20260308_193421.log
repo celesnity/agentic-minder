@@ -1,0 +1,15 @@
+[0.000] [HybridVoice] Awake
+[0.289] [HybridVoice] InternetModule acquired
+[0.289] [HybridVoice] AudioOutput initialized: sampleRate=16000
+[0.291] [HybridVoice] AudioComponent ready (play(-1) called)
+[0.291] [HybridVoice] === INIT SUMMARY ===
+[0.291] [HybridVoice]   outputTrack: SET
+[0.291] [HybridVoice]   audioComponent: SET
+[0.292] [HybridVoice]   audioOutput: SET
+[0.292] [HybridVoice]   playbackReady: true
+[0.292] [HybridVoice] ===================
+[0.292] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[0.524] [HybridVoice] Connected to voice proxy
+[0.525] [RemoteLogger] Socket attached (12 buffered)
+[0.526] [HybridVoice] Session started (text input mode)
+[2.363] [HybridVoice] Session confirmed: inputMode=text

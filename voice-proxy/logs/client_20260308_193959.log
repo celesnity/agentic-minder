@@ -1,0 +1,31 @@
+[123.846] [HybridVoice] Socket closed: code=1011
+[123.846] [HybridVoice] Reconnecting in 1000ms (attempt 1)
+[124.848] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[124.896] [HybridVoice] Socket error
+[124.896] [HybridVoice] Socket closed: code=1011
+[124.897] [HybridVoice] Reconnecting in 2000ms (attempt 2)
+[126.901] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[127.002] [HybridVoice] Connected to voice proxy
+[127.002] [RemoteLogger] Socket attached (8 buffered)
+[127.004] [HybridVoice] processing → idle
+[127.004] [HybridVoice] Session started (text input mode)
+[127.637] [HybridVoice] Session confirmed: inputMode=text
+[191.976] [HybridVoice] idle → processing
+[191.977] [HybridVoice] Query sent: 'I'll say it again.
+
+Is Trump a good person?'
+[196.370] [HybridVoice] processing → responding
+[196.569] [HybridVoice] FIRST audio chunk: 4172B, state=responding, playbackReady=true, audioOutput=true
+[196.738] [HybridVoice] Jitter buffer full — starting playback (3 chunks buffered)
+[196.740] [HybridVoice] FIRST frame enqueued: 2086 samples
+[198.425] [HybridVoice] Audio: 50 chunks, 218166B total
+[200.479] [HybridVoice] Audio: 100 chunks, 432160B total
+[202.700] [HybridVoice] Audio: 150 chunks, 646152B total
+[204.722] [HybridVoice] Audio: 200 chunks, 863118B total
+[206.877] [HybridVoice] Audio: 250 chunks, 1077110B total
+[209.050] [HybridVoice] Audio: 300 chunks, 1291102B total
+[211.078] [HybridVoice] Audio: 350 chunks, 1511042B total
+[213.269] [HybridVoice] Audio: 400 chunks, 1723548B total
+[215.289] [HybridVoice] Audio: 450 chunks, 1937540B total
+[216.409] [HybridVoice] Response done: 477 chunks, 2049278B audio, 477 frames enqueued
+[216.410] [HybridVoice] responding → idle

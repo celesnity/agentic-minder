@@ -1,0 +1,32 @@
+[0.001] [HybridVoice] Awake
+[0.317] [HybridVoice] InternetModule acquired
+[0.317] [HybridVoice] AudioOutput initialized: sampleRate=16000
+[0.319] [HybridVoice] AudioComponent playing (-1) — will enqueue frames as they arrive
+[0.319] [HybridVoice] === INIT SUMMARY ===
+[0.319] [HybridVoice]   outputTrack: SET
+[0.320] [HybridVoice]   audioComponent: SET
+[0.320] [HybridVoice]   audioOutput: SET
+[0.320] [HybridVoice]   playbackReady: true
+[0.320] [HybridVoice] ===================
+[0.321] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[1.637] [HybridVoice] Connected to voice proxy
+[1.637] [RemoteLogger] Socket attached (12 buffered)
+[1.639] [HybridVoice] Session started (text input mode)
+[1.645] [HybridVoice] TEST TONE: 440Hz beep enqueued (8000 samples)
+[2.288] [HybridVoice] Session confirmed: inputMode=text
+[9.067] [HybridVoice] idle → processing
+[9.068] [HybridVoice] Query sent: 'Hello. Can you hear me?'
+[16.266] [HybridVoice] processing → responding
+[16.502] [HybridVoice] Receiving audio via Base64 JSON (text frame path)
+[16.502] [HybridVoice] FIRST audio chunk: 4172B, state=responding, playbackReady=true, audioOutput=true
+[16.623] [HybridVoice] AudioComponent restarted play(-1) for TTS
+[16.624] [HybridVoice] Jitter buffer full — draining 3 chunks
+[16.627] [HybridVoice] FRAME #1: 2086 samples, rms=0.0012, range=[-0.0092,0.0117], nonZero=2081/2086, first8=[-0.0000,-0.0002,-0.0002,-0.0002,-0.0002,-0.0001,-0.0001,-0.0002]
+[16.628] [HybridVoice] RAW bytes[0:16]: ff ff f8 ff f9 ff fb ff fb ff fc ff fc ff fb ff
+[16.631] [HybridVoice] FRAME #2: 2229 samples, rms=0.2675, range=[-1.0000,0.9998], nonZero=2227/2229, first8=[0.0064,0.0026,0.0001,-0.0056,-0.0099,-0.0060,-0.0011,0.0009]
+[16.632] [HybridVoice] RAW bytes[0:16]: d3 00 56 00 04 00 4a ff bd fe 3b ff db ff 1e 00
+[18.840] [HybridVoice] Audio: 50 chunks, 216678B total
+[21.080] [HybridVoice] Audio: 100 chunks, 430670B total
+[23.111] [HybridVoice] Audio: 150 chunks, 649124B total
+[23.246] [HybridVoice] Response done: 154 chunks, 665754B audio, 154 frames enqueued
+[23.246] [HybridVoice] responding → idle

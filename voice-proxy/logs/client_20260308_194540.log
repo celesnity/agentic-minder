@@ -1,0 +1,44 @@
+[0.000] [HybridVoice] Awake
+[0.289] [HybridVoice] InternetModule acquired
+[0.289] [HybridVoice] AudioOutput initialized: sampleRate=16000
+[0.289] [HybridVoice] AudioComponent ready (will call play(-1) when audio starts)
+[0.289] [HybridVoice] === INIT SUMMARY ===
+[0.290] [HybridVoice]   outputTrack: SET
+[0.290] [HybridVoice]   audioComponent: SET
+[0.290] [HybridVoice]   audioOutput: SET
+[0.290] [HybridVoice]   playbackReady: true
+[0.290] [HybridVoice] ===================
+[0.291] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[0.515] [HybridVoice] Connected to voice proxy
+[0.516] [RemoteLogger] Socket attached (12 buffered)
+[0.518] [HybridVoice] Session started (text input mode)
+[1.289] [HybridVoice] Session confirmed: inputMode=text
+[8.066] [HybridVoice] idle → processing
+[8.066] [HybridVoice] Query sent: 'Hey, can you hear me?'
+[18.974] [HybridVoice] processing → responding
+[19.191] [HybridVoice] FIRST audio chunk: 4172B, state=responding, playbackReady=true, audioOutput=true
+[19.293] [HybridVoice] AudioComponent play(-1) called — starting playback
+[19.293] [HybridVoice] Jitter buffer full — draining 3 chunks
+[19.296] [HybridVoice] FIRST frame enqueued: 2086 samples
+[21.155] [HybridVoice] Audio: 50 chunks, 215192B total
+[23.494] [HybridVoice] Audio: 100 chunks, 424726B total
+[25.983] [HybridVoice] Response done: 147 chunks, 624142B audio, 147 frames enqueued
+[25.983] [HybridVoice] responding → idle
+[33.187] [HybridVoice] idle → processing
+[33.187] [HybridVoice] Query sent: 'So, it's not playing.'
+[34.039] [HybridVoice] Barge-in! Interrupting agent (was processing)
+[34.111] [HybridVoice] Playback flushed
+[34.112] [HybridVoice] processing → idle
+[34.179] [HybridVoice] Playback flushed
+[38.592] [HybridVoice] idle → processing
+[38.592] [HybridVoice] Query sent: 'Yay.'
+[49.465] [HybridVoice] processing → responding
+[49.681] [HybridVoice] FIRST audio chunk: 4172B, state=responding, playbackReady=true, audioOutput=true
+[49.749] [HybridVoice] AudioComponent play(-1) called — starting playback
+[49.750] [HybridVoice] Jitter buffer full — draining 3 chunks
+[49.752] [HybridVoice] FIRST frame enqueued: 2086 samples
+[51.889] [HybridVoice] Audio: 50 chunks, 204790B total
+[54.108] [HybridVoice] Audio: 100 chunks, 415808B total
+[56.223] [HybridVoice] Audio: 150 chunks, 629800B total
+[57.361] [HybridVoice] Response done: 176 chunks, 741540B audio, 176 frames enqueued
+[57.362] [HybridVoice] responding → idle

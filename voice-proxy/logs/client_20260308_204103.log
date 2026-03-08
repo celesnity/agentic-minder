@@ -1,0 +1,83 @@
+[0.000] [HybridVoice] Awake
+[0.272] [HybridVoice] InternetModule acquired
+[0.273] [HybridVoice] AudioOutput initialized: sampleRate=16000
+[0.273] [HybridVoice] AudioComponent ready (play(-1) deferred to first enqueue)
+[0.273] [HybridVoice] === INIT SUMMARY ===
+[0.274] [HybridVoice]   outputTrack: SET
+[0.275] [HybridVoice]   audioComponent: SET
+[0.276] [HybridVoice]   audioOutput: SET
+[0.277] [HybridVoice]   playbackReady: true
+[0.280] [HybridVoice] ===================
+[0.280] [HybridVoice] Connecting to ws://172.16.2.117:8765
+[0.487] [HybridVoice] Connected to voice proxy
+[0.487] [RemoteLogger] Socket attached (12 buffered)
+[0.488] [HybridVoice] Session started (text input mode)
+[1.154] [HybridVoice] Session confirmed: inputMode=text
+[8.706] [HybridVoice] idle → processing
+[8.707] [HybridVoice] Query sent: 'Hey, can you hear me?'
+[17.107] [HybridVoice] processing → responding
+[17.335] [HybridVoice] Receiving audio via Base64 JSON (text frame path)
+[17.335] [HybridVoice] FIRST audio chunk: 4172B, state=responding, playbackReady=true, audioOutput=true
+[17.420] [HybridVoice] Jitter buffer full — draining 3 chunks
+[17.422] [HybridVoice] AudioComponent play(-1) called before first TTS enqueue
+[17.425] [HybridVoice] FRAME #1: 2086 samples, rms=0.0004, range=[-0.0023,0.0021], nonZero=2070/2086, isPlaying=true
+[17.429] [HybridVoice] FRAME #2: 2229 samples, rms=0.2478, range=[-0.9931,0.9866], nonZero=2227/2229, isPlaying=true
+[19.519] [HybridVoice] Audio: 50 chunks, 215192B total
+[21.731] [HybridVoice] Audio: 100 chunks, 423238B total
+[22.869] [HybridVoice] Response done: 131 chunks, 557270B audio, 131 frames enqueued
+[22.869] [HybridVoice] responding → idle
+[35.900] [HybridVoice] idle → processing
+[35.900] [HybridVoice] Query sent: 'Um, I want to ask you about Oklahoma.'
+[38.068] [HybridVoice] processing → responding
+[38.307] [HybridVoice] Receiving audio via Base64 JSON (text frame path)
+[38.307] [HybridVoice] FIRST audio chunk: 4172B, state=responding, playbackReady=true, audioOutput=true
+[38.391] [HybridVoice] Jitter buffer full — draining 3 chunks
+[38.395] [HybridVoice] FRAME #1: 2086 samples, rms=0.0138, range=[-0.1259,0.0862], nonZero=2080/2086, isPlaying=true
+[38.399] [HybridVoice] FRAME #2: 2229 samples, rms=0.2114, range=[-0.9482,0.9977], nonZero=2229/2229, isPlaying=true
+[44.227] [HybridVoice] Audio: 50 chunks, 210734B total
+[46.625] [HybridVoice] Audio: 100 chunks, 426212B total
+[48.095] [HybridVoice] Barge-in! Interrupting agent (was responding)
+[48.138] [HybridVoice] Playback stopped (flush)
+[48.138] [HybridVoice] Playback flushed
+[48.139] [HybridVoice] responding → idle
+[48.167] [HybridVoice] Playback flushed
+[49.515] [HybridVoice] idle → processing
+[49.515] [HybridVoice] Query sent: '.'
+[52.387] [HybridVoice] processing → responding
+[53.828] [HybridVoice] Jitter buffer full — draining 3 chunks
+[54.340] [HybridVoice] Audio: 150 chunks, 644662B total
+[55.446] [HybridVoice] Barge-in! Interrupting agent (was responding)
+[55.483] [HybridVoice] Playback stopped (flush)
+[55.483] [HybridVoice] Playback flushed
+[55.483] [HybridVoice] responding → idle
+[55.526] [HybridVoice] Playback flushed
+[55.830] [HybridVoice] idle → processing
+[55.830] [HybridVoice] Query sent: 'day.'
+[61.550] [HybridVoice] processing → responding
+[62.353] [HybridVoice] Jitter buffer full — draining 3 chunks
+[62.735] [HybridVoice] Invalid JSON from proxy: U9bX1lvWS9QX2dvaF9oj3//cq+AX4CvgB+YD6SPv0+sX6/Pqy+zz8Dfwq/L785PwA/cj8HP2Q/X39Gf1+/HL9i/6e/lP/1v+TAM0
+[63.257] [HybridVoice] Audio: 200 chunks, 853908B total
+[65.211] [HybridVoice] Audio: 250 chunks, 1070874B total
+[69.312] [HybridVoice] Audio: 300 chunks, 1284866B total
+[70.787] [HybridVoice] Response done: 335 chunks, 1432270B audio, 334 frames enqueued
+[70.788] [HybridVoice] responding → idle
+[77.840] [HybridVoice] idle → processing
+[77.841] [HybridVoice] Query sent: 'Stop.'
+[94.647] [HybridVoice] Barge-in! Interrupting agent (was processing)
+[94.652] [HybridVoice] Playback stopped (flush)
+[94.652] [HybridVoice] Playback flushed
+[94.653] [HybridVoice] processing → idle
+[94.702] [HybridVoice] Playback flushed
+[95.908] [HybridVoice] idle → processing
+[95.908] [HybridVoice] Query sent: 'Hmm.'
+[98.563] [HybridVoice] processing → responding
+[98.783] [HybridVoice] Receiving audio via Base64 JSON (text frame path)
+[98.784] [HybridVoice] FIRST audio chunk: 4172B, state=responding, playbackReady=true, audioOutput=true
+[98.904] [HybridVoice] Jitter buffer full — draining 3 chunks
+[98.907] [HybridVoice] AudioComponent play(-1) called before first TTS enqueue
+[98.910] [HybridVoice] FRAME #1: 2086 samples, rms=0.1938, range=[-0.9370,0.9991], nonZero=2074/2086, isPlaying=true
+[98.914] [HybridVoice] FRAME #2: 2229 samples, rms=0.1705, range=[-0.9890,0.9951], nonZero=2228/2229, isPlaying=true
+[100.731] [HybridVoice] Audio: 50 chunks, 219652B total
+[102.778] [HybridVoice] Audio: 100 chunks, 436616B total
+[103.964] [HybridVoice] Response done: 127 chunks, 548354B audio, 127 frames enqueued
+[103.964] [HybridVoice] responding → idle
