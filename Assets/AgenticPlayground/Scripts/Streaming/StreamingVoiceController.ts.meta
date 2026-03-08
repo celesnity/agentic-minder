@@ -1,0 +1,56 @@
+- !<AssetImportMetadata/6ca3cbc2-54c6-47a9-a50c-9d256311ba50>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 2be01539-a50f-4d31-8046-656ebdfe5de4
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 2be01539-a50f-4d31-8046-656ebdfe5de4
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 880b4e9e-7584-417b-843c-bd41f654978b
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/880b4e9e-7584-417b-843c-bd41f654978b>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 45e62957-3c68-48de-87c5-04d236fb49b0
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    audioBridge: false
+    bargeInThreshold: false
+    minInterruptionDuration: false
+    userAwayTimeout: false
+    voiceProxyUrl: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - audioBridge: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      voiceProxyUrl: "ws://Saturday-Bill.local:8765"
+      bargeInThreshold: !<float> 200.000000
+      minInterruptionDuration: !<float> 500.000000
+      userAwayTimeout: !<float> 15000.000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input Component.ScriptComponent audioBridge
+    - '// @input string voiceProxyUrl = "ws://172.16.2.117:8765" {"hint":"Voice proxy server WebSocket URL (e.g., ws://172.16.8.164:8765)"}'
+    - // @input float bargeInThreshold = 200
+    - // @input float minInterruptionDuration = 500
+    - // @input float userAwayTimeout = 15000

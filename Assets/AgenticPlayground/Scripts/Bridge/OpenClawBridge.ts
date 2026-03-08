@@ -76,7 +76,7 @@ export class OpenClawBridge {
   // ================================
 
   private config: OpenClawBridgeConfig = {
-    serverUrl: "ws://172.16.0.93:18789",
+    serverUrl: "ws://172.16.8.164:18789",
     authToken: "",
     connectTimeout: 5000,
     requestTimeout: 60000,
@@ -131,6 +131,10 @@ export class OpenClawBridge {
   public readonly onStreamingDelta = new Event<OpenClawStreamingDelta>()
   public readonly onAgentEvent = new Event<EventFrame>()
   public readonly onError = new Event<OpenClawError>()
+
+  // Binary audio streaming events
+  public readonly onBinaryAudioFrame = new Event<Uint8Array>()
+  private _isStreamingAudio: boolean = false
 
   // ================================
   // Constructor
@@ -245,6 +249,37 @@ export class OpenClawBridge {
    */
   public getCurrentRunId(): string | null {
     return this.currentRunId
+  }
+
+  /**
+   * Enable/disable binary audio streaming mode.
+   * When enabled, incoming binary WebSocket frames are routed to onBinaryAudioFrame
+   * instead of being parsed as text.
+   */
+  public setStreamingAudio(enabled: boolean): void {
+    this._isStreamingAudio = enabled
+    print("[OpenClaw] Streaming audio: " + enabled)
+  }
+
+  /**
+   * Check if streaming audio mode is active.
+   */
+  public isStreamingAudio(): boolean {
+    return this._isStreamingAudio
+  }
+
+  /**
+   * Send binary data (PCM16 audio) over the WebSocket.
+   */
+  public sendBinary(data: Uint8Array): void {
+    if (!this.socket || this.connectionState.status !== "connected") {
+      return
+    }
+    try {
+      this.socket.send(data)
+    } catch (e) {
+      print("[OpenClaw] Failed to send binary: " + e)
+    }
   }
 
   // ================================
@@ -451,8 +486,15 @@ export class OpenClawBridge {
       if (typeof event.data === "string") {
         this.onSocketMessage(event.data)
       } else if (event.data instanceof Blob) {
-        const text = await event.data.text()
-        this.onSocketMessage(text)
+        if (this._isStreamingAudio) {
+          // Binary frame → route to audio bridge
+          const bytes = await event.data.bytes()
+          this.onBinaryAudioFrame.invoke(bytes)
+        } else {
+          // Legacy: convert blob to text for JSON parsing
+          const text = await event.data.text()
+          this.onSocketMessage(text)
+        }
       }
     }
 

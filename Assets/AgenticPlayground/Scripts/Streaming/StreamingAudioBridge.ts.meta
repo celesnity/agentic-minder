@@ -1,0 +1,50 @@
+- !<AssetImportMetadata/91134fd4-ef0c-4a07-a747-d7eeeef14564>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 3eb1a473-611b-45a4-977e-366ead015fb4
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 3eb1a473-611b-45a4-977e-366ead015fb4
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 2282c669-b9b9-479e-9b75-afd022d3fcbb
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/2282c669-b9b9-479e-9b75-afd022d3fcbb>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: c3f0454c-bdb6-4215-9282-3dc1dc013276
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    energyThreshold: false
+    micTrack: false
+    outputTrack: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - micTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+      outputTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+      energyThreshold: !<float> 0.000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input Asset.AudioTrackAsset micTrack
+    - // @input Asset.AudioTrackAsset outputTrack
+    - '// @input float energyThreshold {"hint":"RMS energy threshold for sending frames. Set to 0 for server-side VAD (sends all frames)"}'

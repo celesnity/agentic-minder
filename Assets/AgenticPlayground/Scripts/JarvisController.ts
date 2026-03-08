@@ -2,6 +2,8 @@ import Event from "SpectaclesInteractionKit.lspkg/Utils/Event"
 import {clearTimeout, setTimeout} from "SpectaclesInteractionKit.lspkg/Utils/FunctionTimingUtils"
 import {OpenClawBridge} from "./Bridge/OpenClawBridge"
 import {GlassQuery, OpenClawConnectionState, OpenClawStreamingDelta} from "./Bridge/OpenClawTypes"
+import {HybridVoiceController, HybridVoiceState} from "./Streaming/HybridVoiceController"
+import {StreamingVoiceController, VoiceState} from "./Streaming/StreamingVoiceController"
 
 /**
  * JarvisController - Central coordinator for the Jarvis voice bridge.
@@ -34,11 +36,29 @@ export class JarvisController extends BaseScriptComponent {
 
   @input
   @hint("OpenClaw server WebSocket URL (e.g., ws://172.16.0.93:18789)")
-  serverUrl: string = "ws://172.16.0.93:18789"
+  serverUrl: string = "ws://172.16.2.117:18789"
 
   @input
   @hint("Gateway auth token from openclaw.json gateway.auth.token")
   authToken: string = ""
+
+  @input
+  @hint("Enable streaming voice mode (uses voice proxy for VAD/ASR/TTS server-side)")
+  streamingMode: boolean = false
+
+  @input
+  @hint("Voice proxy server URL for streaming mode (e.g., ws://172.16.8.164:8765)")
+  voiceProxyUrl: string = "ws://172.16.2.117:8765"
+
+  @input("Component.ScriptComponent")
+  @hint("Reference to StreamingVoiceController (full audio streaming mode)")
+  @allowUndefined
+  streamingVoiceController: StreamingVoiceController
+
+  @input("Component.ScriptComponent")
+  @hint("Reference to HybridVoiceController (native ASR + server TTS mode)")
+  @allowUndefined
+  hybridVoiceController: HybridVoiceController
 
   @input
   @hint("Enable debug logging")
@@ -64,6 +84,8 @@ export class JarvisController extends BaseScriptComponent {
   public onError: Event<string> = new Event<string>()
   public onConnectionStateChanged: Event<OpenClawConnectionState> = new Event()
   public onStreamingDelta: Event<OpenClawStreamingDelta> = new Event()
+  public onVoiceStateChanged: Event<VoiceState> = new Event()
+  public onTranscript: Event<{text: string; isFinal: boolean}> = new Event()
 
   // ================================
   // Lifecycle
@@ -76,9 +98,22 @@ export class JarvisController extends BaseScriptComponent {
   private initialize(): void {
     if (this.initialized) return
 
+    if (this.streamingMode) {
+      this.initializeStreamingMode()
+    } else {
+      this.initializeClassicMode()
+    }
+
+    this.initialized = true
+    print("JarvisController: Initialized (streamingMode=" + this.streamingMode + ")")
+  }
+
+  /**
+   * Classic mode: Connect directly to OpenClaw, use on-device ASR + TTS.
+   */
+  private initializeClassicMode(): void {
     this.bridge = OpenClawBridge.getInstance()
 
-    // Configure bridge
     if (this.remoteServiceModule) {
       this.bridge.setRemoteServiceModule(this.remoteServiceModule)
     }
@@ -91,7 +126,6 @@ export class JarvisController extends BaseScriptComponent {
       enableStreaming: true
     })
 
-    // Subscribe to bridge events
     this.bridge.onConnectionStateChanged.add((state: OpenClawConnectionState) => {
       this.onConnectionStateChanged.invoke(state)
       if (state.status === "connected") {
@@ -109,11 +143,135 @@ export class JarvisController extends BaseScriptComponent {
       this.onError.invoke(error.message)
     })
 
-    // Connect to server
     this.bridge.connect(this.serverUrl)
+  }
 
-    this.initialized = true
-    print("JarvisController: Initialized")
+  /**
+   * Streaming mode: Connect to voice proxy server for server-side TTS.
+   * Prefers HybridVoiceController (native ASR + server TTS) over StreamingVoiceController.
+   */
+  private initializeStreamingMode(): void {
+    if (this.hybridVoiceController) {
+      this.initializeHybridMode()
+    } else if (this.streamingVoiceController) {
+      this.initializeFullStreamingMode()
+    } else {
+      print("JarvisController: ERROR — streamingMode enabled but no voice controller set")
+      print("JarvisController: Falling back to classic mode")
+      this.streamingMode = false
+      this.initializeClassicMode()
+    }
+  }
+
+  /**
+   * Hybrid mode: native ASR on-device + server-side TTS via voice proxy.
+   * ChatASRController sends final transcripts → HybridVoiceController → proxy → TTS audio.
+   */
+  private initializeHybridMode(): void {
+    this.hybridVoiceController.voiceProxyUrl = this.voiceProxyUrl
+    this.hybridVoiceController.initialize()
+
+    this.hybridVoiceController.onStateChanged.add((state: HybridVoiceState) => {
+      this.onVoiceStateChanged.invoke(state as any)
+    })
+
+    this.hybridVoiceController.onTranscript.add((data) => {
+      this.onTranscript.invoke(data)
+    })
+
+    this.hybridVoiceController.onResponseDelta.add((data) => {
+      this.onStreamingDelta.invoke({
+        delta: data.delta,
+        accumulated: data.accumulated,
+        done: data.done,
+      })
+
+      if (data.done && data.accumulated) {
+        this.onQueryProcessed.invoke({
+          query: "",
+          response: data.accumulated,
+        })
+      }
+    })
+
+    this.hybridVoiceController.onConnectionChanged.add((data) => {
+      this.onConnectionStateChanged.invoke({
+        status: data.connected ? "connected" : "disconnected",
+        serverUrl: this.voiceProxyUrl,
+        deviceToken: null,
+        sessionKey: null,
+        connId: null,
+        protocolVersion: 3,
+        lastHeartbeat: 0,
+        reconnectAttempts: 0,
+        availableMethods: [],
+        availableEvents: [],
+      })
+    })
+
+    this.hybridVoiceController.onError.add((error: string) => {
+      this.onError.invoke(error)
+    })
+
+    this.hybridVoiceController.start()
+    print("JarvisController: Hybrid mode active → " + this.voiceProxyUrl)
+  }
+
+  /**
+   * Full streaming mode: raw audio streaming via StreamingVoiceController.
+   * Spectacles send raw mic audio → proxy handles VAD/ASR/TTS.
+   */
+  private initializeFullStreamingMode(): void {
+    this.streamingVoiceController.voiceProxyUrl = this.voiceProxyUrl
+    this.streamingVoiceController.initialize()
+
+    this.streamingVoiceController.onStateChanged.add((state: VoiceState) => {
+      this.onVoiceStateChanged.invoke(state)
+    })
+
+    this.streamingVoiceController.onTranscript.add((data) => {
+      this.onTranscript.invoke(data)
+      if (data.isFinal && data.text && this.isVisualQuery(data.text)) {
+        this.captureAndSendAttachment()
+      }
+    })
+
+    this.streamingVoiceController.onResponseDelta.add((data) => {
+      this.onStreamingDelta.invoke({
+        delta: data.delta,
+        accumulated: data.accumulated,
+        done: data.done,
+      })
+
+      if (data.done && data.accumulated) {
+        this.onQueryProcessed.invoke({
+          query: "",
+          response: data.accumulated,
+        })
+      }
+    })
+
+    this.streamingVoiceController.onConnectionChanged.add((data) => {
+      this.onConnectionStateChanged.invoke({
+        status: data.connected ? "connected" : "disconnected",
+        serverUrl: this.voiceProxyUrl,
+        deviceToken: null,
+        sessionKey: null,
+        connId: null,
+        protocolVersion: 3,
+        lastHeartbeat: 0,
+        reconnectAttempts: 0,
+        availableMethods: [],
+        availableEvents: [],
+      })
+    })
+
+    this.streamingVoiceController.onError.add((error: string) => {
+      this.onError.invoke(error)
+    })
+
+    this.streamingVoiceController.start()
+    print("JarvisController: Full streaming mode active → " + this.voiceProxyUrl)
   }
 
   // ================================
@@ -202,8 +360,16 @@ export class JarvisController extends BaseScriptComponent {
 
   /**
    * Abort the current in-progress query and stop TTS.
+   * In streaming mode, this is handled by the voice proxy via barge-in.
    */
   public abortCurrentQuery(): void {
+    if (this.streamingMode) {
+      if (this.hybridVoiceController) {
+        this.hybridVoiceController.bargeIn()
+      }
+      // StreamingVoiceController handles barge-in internally
+      return
+    }
     if (this.bridge?.isConnected()) {
       this.bridge.abortQuery()
     }
@@ -212,9 +378,17 @@ export class JarvisController extends BaseScriptComponent {
   }
 
   /**
-   * Check if native TTS is currently playing audio (for barge-in detection).
+   * Check if agent is currently processing or speaking (for barge-in detection).
    */
   public isSpeaking(): boolean {
+    if (this.streamingMode) {
+      if (this.hybridVoiceController) {
+        return this.hybridVoiceController.isBusy()
+      }
+      if (this.streamingVoiceController) {
+        return this.streamingVoiceController.getState() === VoiceState.RESPONDING
+      }
+    }
     return this.isSpeakingNative
   }
 
@@ -222,6 +396,14 @@ export class JarvisController extends BaseScriptComponent {
    * Check if system is ready for queries.
    */
   public isSystemReady(): boolean {
+    if (this.streamingMode) {
+      if (this.hybridVoiceController) {
+        return this.initialized && this.hybridVoiceController.isConnected()
+      }
+      if (this.streamingVoiceController) {
+        return this.initialized && this.streamingVoiceController.isConnected()
+      }
+    }
     return this.initialized && this.bridge?.isConnected() && !this.isProcessing
   }
 
@@ -279,6 +461,70 @@ export class JarvisController extends BaseScriptComponent {
     } catch (error) {
       print(`JarvisController: Camera capture failed: ${error}`)
       return null
+    }
+  }
+
+  // ================================
+  // Streaming Mode — Visual Query
+  // ================================
+
+  /**
+   * Send a text query through the hybrid voice controller.
+   * Called by ChatASRController in hybrid mode with final ASR transcript.
+   * Automatically detects visual queries and captures camera frame.
+   */
+  public async sendHybridQuery(text: string): Promise<void> {
+    if (!this.hybridVoiceController) {
+      print("JarvisController: sendHybridQuery called but no hybridVoiceController")
+      return
+    }
+
+    // Visual query: capture camera frame and include as inline attachment
+    if (this.isVisualQuery(text)) {
+      try {
+        const imageData = await this.captureFrame()
+        if (imageData) {
+          this.hybridVoiceController.sendQuery(text, { data: imageData, mimeType: "image/jpeg" })
+          if (this.enableDebugLogging) {
+            print("JarvisController: Hybrid visual query sent with attachment")
+          }
+          return
+        }
+      } catch (e) {
+        print("JarvisController: Camera capture failed, sending without image: " + e)
+      }
+    }
+
+    this.hybridVoiceController.sendQuery(text)
+  }
+
+  /**
+   * Check if hybrid mode is active (native ASR + server TTS).
+   */
+  public isHybridMode(): boolean {
+    return this.streamingMode && !!this.hybridVoiceController
+  }
+
+  /**
+   * Capture a camera frame and send it to the voice proxy as an attachment.
+   * Works for both full streaming and hybrid modes.
+   */
+  private async captureAndSendAttachment(): Promise<void> {
+    try {
+      const imageData = await this.captureFrame()
+      if (!imageData) return
+
+      if (this.hybridVoiceController?.isConnected()) {
+        this.hybridVoiceController.sendAttachment(imageData, "image/jpeg")
+      } else if (this.streamingVoiceController?.isConnected()) {
+        this.streamingVoiceController.sendAttachment(imageData, "image/jpeg")
+      }
+
+      if (this.enableDebugLogging) {
+        print("JarvisController: Visual query — attachment sent to proxy")
+      }
+    } catch (e) {
+      print("JarvisController: Visual query capture failed: " + e)
     }
   }
 

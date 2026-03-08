@@ -31,3 +31,10 @@ BackUp/**
 *.lock
 
 Workspaces/** 
+voice-proxy/.env
+voice-proxy/.venv
+voice-proxy/__pycache__
+voice-proxy/logs/*
+voice-proxy/test_output/*
+livekit/
+openclaw/

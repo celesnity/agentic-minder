@@ -296,8 +296,11 @@ export class ChatASRController extends BaseScriptComponent {
       if (!this.alwaysOnActive) return
 
       const elapsed = (Date.now() - this.lastASRStartTime) / 1000
-      if (elapsed > 15 && !this.isRecording) {
-        print(`ChatASRController: [AlwaysOn] Watchdog: ASR idle for ${elapsed.toFixed(0)}s — force restarting`)
+      print(`ChatASRController: [AlwaysOn] Watchdog: elapsed=${elapsed.toFixed(0)}s isRecording=${this.isRecording} session=#${this.asrSessionId}`)
+
+      if (elapsed > 10) {
+        print(`ChatASRController: [AlwaysOn] Watchdog: ASR stuck for ${elapsed.toFixed(0)}s — force restarting`)
+        this.isRecording = false
         this.startAlwaysOnASR()
       }
 
@@ -314,26 +317,43 @@ export class ChatASRController extends BaseScriptComponent {
    * Called initially and after each isFinal or error to restart listening.
    */
   private startAlwaysOnASR(): void {
-    if (!this.alwaysOnActive) return
+    if (!this.alwaysOnActive) {
+      print("ChatASRController: [AlwaysOn] startAlwaysOnASR called but not active — skipping")
+      return
+    }
 
-    const sessionId = ++this.asrSessionId
-    this.currentPartialText = ""
-    this.lastASRStartTime = Date.now()
-
-    // Clean stop any previous ASR session
+    // Clean stop any previous ASR session first
     try {
       this.asrModule.stopTranscribing()
     } catch (_e) { /* ignore */ }
 
-    this.isRecording = true
-    this.lastActivityTime = Date.now()
-    this.isIntentionallyAnimating = true
-    this.animateActivityIndicator(true)
+    // Delay before starting new session — gives ASR module time to clean up
+    setTimeout(() => {
+      if (!this.alwaysOnActive) return
 
-    const options = this.createAlwaysOnASROptions(sessionId)
-    this.asrModule.startTranscribing(options)
+      const sessionId = ++this.asrSessionId
+      this.currentPartialText = ""
+      this.lastASRStartTime = Date.now()
+      this.isRecording = true
+      this.lastActivityTime = Date.now()
+      this.isIntentionallyAnimating = true
+      this.animateActivityIndicator(true)
 
-    print(`ChatASRController: [AlwaysOn] ASR session #${sessionId} started — speak now`)
+      try {
+        const options = this.createAlwaysOnASROptions(sessionId)
+        this.asrModule.startTranscribing(options)
+        print(`ChatASRController: [AlwaysOn] ASR session #${sessionId} started — speak now`)
+      } catch (e) {
+        print(`ChatASRController: [AlwaysOn] ASR session #${sessionId} FAILED to start: ${e}`)
+        this.isRecording = false
+        // Retry after longer delay
+        setTimeout(() => {
+          if (this.alwaysOnActive) {
+            this.startAlwaysOnASR()
+          }
+        }, 3000)
+      }
+    }, 300)
   }
 
   /**
@@ -375,7 +395,11 @@ export class ChatASRController extends BaseScriptComponent {
     })
 
     options.onTranscriptionErrorEvent.add((errorCode: any) => {
-      if (sessionId !== this.asrSessionId) return
+      print(`ChatASRController: [AlwaysOn] ASR error in session #${sessionId}: ${errorCode} (current: ${this.asrSessionId})`)
+      if (sessionId !== this.asrSessionId) {
+        print(`ChatASRController: [AlwaysOn] Stale error ignored`)
+        return
+      }
 
       this.isRecording = false
       if (!this.isIntentionallyAnimating) {
@@ -401,18 +425,27 @@ export class ChatASRController extends BaseScriptComponent {
   private finalizeAndDispatch(query: string): void {
     this.clearSilenceTimer()
     this.isRecording = false
-    this.isIntentionallyAnimating = false
-    this.animateActivityIndicator(false)
     this.currentPartialText = ""
 
     if (query.length > 0) {
+      this.isIntentionallyAnimating = false
+      this.animateActivityIndicator(false)
       this.dispatchQueryNonBlocking(query)
+      // Restart ASR after a real query — short delay
+      setTimeout(() => {
+        if (this.alwaysOnActive) {
+          this.startAlwaysOnASR()
+        }
+      }, 1000)
+    } else {
+      // Empty final (silence timeout) — restart with longer delay to avoid rapid cycling
+      print("ChatASRController: [AlwaysOn] Empty final — restarting ASR in 3s")
+      setTimeout(() => {
+        if (this.alwaysOnActive) {
+          this.startAlwaysOnASR()
+        }
+      }, 3000)
     }
-
-    // Restart ASR immediately
-    setTimeout(() => {
-      this.startAlwaysOnASR()
-    }, 200)
   }
 
   /**
@@ -460,7 +493,8 @@ export class ChatASRController extends BaseScriptComponent {
 
   /**
    * Send query to orchestrator without blocking ASR.
-   * Fire-and-forget: ASR restarts immediately, response handled asynchronously.
+   * In hybrid mode: routes to HybridVoiceController via JarvisController.
+   * In classic mode: routes to processQueryNonBlocking (OpenClaw + native TTS).
    */
   private dispatchQueryNonBlocking(query: string): void {
     if (!query || query.trim().length === 0) return
@@ -468,6 +502,15 @@ export class ChatASRController extends BaseScriptComponent {
     this.onQueryReceived.invoke(query)
     print(`ChatASRController: [AlwaysOn] Dispatching: "${query.substring(0, 60)}"`)
 
+    // Hybrid mode: send text to proxy via HybridVoiceController
+    // Visual queries: capture camera frame and include as attachment
+    if (this.jarvisController.isHybridMode()) {
+      this.jarvisController.sendHybridQuery(query)
+      // Visual query detection handled by JarvisController (captures frame, sends attachment)
+      return
+    }
+
+    // Classic mode: direct OpenClaw + native TTS
     this.jarvisController.processQueryNonBlocking(query)
       .then((response: string) => {
         this.onQueryProcessed.invoke({ query, response })

@@ -1,0 +1,50 @@
+- !<AssetImportMetadata/adc54ffd-6c2a-4998-aca2-a0488fc26c8b>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 3f53fcf3-c3e6-4b3b-b48c-7515b8db0750
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 3f53fcf3-c3e6-4b3b-b48c-7515b8db0750
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 9d525425-4a4e-4227-9bc3-424fdb4adfde
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/9d525425-4a4e-4227-9bc3-424fdb4adfde>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 9b162529-102c-43b8-86f5-8930d9d00209
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    audioComponent: false
+    outputTrack: false
+    voiceProxyUrl: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - outputTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+      audioComponent: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
+      voiceProxyUrl: "ws://172.16.2.117:8765"
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @input Asset.AudioTrackAsset outputTrack {"hint":"AudioTrackAsset with AudioOutputProvider for TTS playback"}'
+    - '// @input Component.AudioComponent audioComponent {"hint":"AudioComponent for playback — must call play(-1) before enqueuing"}'
+    - '// @input string voiceProxyUrl = "ws://172.16.2.117:8765" {"hint":"Voice proxy server WebSocket URL (e.g., ws://172.16.8.164:8765)"}'

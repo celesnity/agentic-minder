@@ -29,9 +29,13 @@
     authToken: false
     enableDebugLogging: false
     enableVoiceOutput: false
+    hybridVoiceController: false
     remoteServiceModule: false
     serverUrl: false
+    streamingMode: false
+    streamingVoiceController: false
     ttsAudioComponent: false
+    voiceProxyUrl: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -46,6 +50,10 @@
       enableVoiceOutput: true
       serverUrl: "ws://192.168.1.66:18789"
       authToken: ""
+      streamingMode: false
+      voiceProxyUrl: "ws://Saturday-Bill.local:8765"
+      streamingVoiceController: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      hybridVoiceController: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
       enableDebugLogging: true
   ScriptTypes:
     -
@@ -54,6 +62,10 @@
     - '// @input Asset.RemoteServiceModule remoteServiceModule {"hint":"RemoteServiceModule reference for WebSocket (InternetModule) + camera (VideoController)"}'
     - '// @input Component.AudioComponent ttsAudioComponent {"hint":"AudioComponent for native TTS playback"}'
     - '// @input bool enableVoiceOutput = true {"hint":"Enable voice output via native TTS"}'
-    - '// @input string serverUrl = "ws://172.16.0.93:18789" {"hint":"OpenClaw server WebSocket URL (e.g., ws://172.16.0.93:18789)"}'
+    - '// @input string serverUrl = "ws://172.16.2.117:18789" {"hint":"OpenClaw server WebSocket URL (e.g., ws://172.16.0.93:18789)"}'
     - '// @input string authToken {"hint":"Gateway auth token from openclaw.json gateway.auth.token"}'
+    - '// @input bool streamingMode {"hint":"Enable streaming voice mode (uses voice proxy for VAD/ASR/TTS server-side)"}'
+    - '// @input string voiceProxyUrl = "ws://172.16.2.117:8765" {"hint":"Voice proxy server URL for streaming mode (e.g., ws://172.16.8.164:8765)"}'
+    - '// @input Component.ScriptComponent streamingVoiceController {"hint":"Reference to StreamingVoiceController (full audio streaming mode)"}'
+    - '// @input Component.ScriptComponent hybridVoiceController {"hint":"Reference to HybridVoiceController (native ASR + server TTS mode)"}'
     - '// @input bool enableDebugLogging = true {"hint":"Enable debug logging"}'
