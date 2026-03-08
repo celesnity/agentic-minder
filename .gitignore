@@ -35,5 +35,6 @@ voice-proxy/.env
 voice-proxy/.venv
 voice-proxy/__pycache__
 voice-proxy/logs/*
-livekit/*
-openclaw/*
+voice-proxy/test_output/*
+livekit/
+openclaw/
